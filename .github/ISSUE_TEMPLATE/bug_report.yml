@@ -1,0 +1,49 @@
+name: Bug report
+description: Something in Weft misbehaves (crashes, wrong result, nondeterminism)
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Security vulnerabilities must NOT be filed here —
+        see SECURITY.md for the private reporting channel.
+  - type: input
+    id: version
+    attributes:
+      label: Weft version / commit
+      description: Output of `weft --version`, or the commit SHA if built from source.
+      placeholder: weft 0.0.1 / abc1234
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: OS, kernel version, architecture, libc (glibc/musl).
+      placeholder: Ubuntu 24.04, kernel 6.8, x86_64, glibc 2.39
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what actually happened.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: |
+        Smallest reproduction you can manage. Once seeds exist: a nondeterminism
+        bug report should include the seed and whether replay diverges.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / output
+      render: text
+    validations:
+      required: false

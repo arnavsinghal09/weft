@@ -1,0 +1,26 @@
+# NOTE: the crate is `weft-dst` because the bare name `weft` is taken on
+# crates.io by an unrelated templating library. The installed binary is `weft`.
+[package]
+name = "weft-dst"
+description = "Deterministic simulation testing for unmodified Linux binaries"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords = ["testing", "simulation", "deterministic", "dst", "fuzzing"]
+categories = ["development-tools::testing"]
+
+[[bin]]
+name = "weft"
+path = "src/main.rs"
+
+[lib]
+name = "weft_dst"
+path = "src/lib.rs"
+
+[dependencies]
+
+[lints]
+workspace = true

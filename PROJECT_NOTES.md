@@ -1,0 +1,178 @@
+# Weft — Project Notes
+
+Working notes for contributors and for future sessions picking this project up
+cold. Read this file plus `graphify-out/GRAPH_REPORT.md` and you should know
+exactly where things stand and what to do next.
+
+## Context-loading workflow (run this first, every session)
+
+```
+graphify . --update --no-viz
+cat graphify-out/GRAPH_REPORT.md
+```
+
+**No LLM API key?** `graphify . --update` errors out if no key (GEMINI/ANTHROPIC/
+OPENAI/etc.) is set, because markdown docs want semantic extraction. The
+no-key fallback works fine for this corpus and is what Phase 0 validated:
+
+```
+graphify update .        # heuristic extraction, no LLM needed
+cat graphify-out/GRAPH_REPORT.md
+```
+
+Note the argument order differs (`graphify update .`, not `graphify . --update`)
+and it takes no `--no-viz` flag. If the rebuild shrinks the graph (e.g. after
+adding `.graphifyignore` entries or deleting code), it refuses to overwrite —
+rerun with `--force`.
+
+Then, as needed while working:
+
+```
+graphify query "<question about the codebase>"
+graphify explain "<node name, e.g. a struct or module>"
+graphify path "<concept A>" "<concept B>"
+```
+
+At the end of every phase, refresh and sanity-check the graph:
+
+```
+graphify . --update --no-viz
+```
+
+If `GRAPH_REPORT.md` looks noisy (build artifacts, lockfiles, license text
+showing up as nodes), fix `.graphifyignore` — do not work around a broken
+graph. `graphify-out/` is gitignored and regenerated per machine.
+
+## What Weft is
+
+A deterministic simulation testing (DST) framework, FoundationDB-simulator /
+Antithesis style, that works on **unmodified compiled Linux binaries** via
+runtime interception (`LD_PRELOAD` first; deeper mechanisms like
+ptrace/seccomp-notify later if needed) — not a special-purpose runtime the
+target must be written against. One seed determines thread interleaving,
+time, randomness, network behavior, and fault schedule; any failure replays
+exactly.
+
+## Naming (decided once — do not revisit)
+
+- CLI binary: **`weft`**
+- Published crate: **`weft-dst`** (bare `weft` is taken on crates.io by an
+  unrelated templating library — never use it in a `Cargo.toml` `name` field)
+- Repo-internal crates are prefixed `weft-` (see layout below); only
+  `weft-dst` is guaranteed a crates.io publication; others publish as needed.
+
+## Implementation language: Rust (decided, with reasoning)
+
+The deciding constraint: Phase 1 must produce a shared library exposing
+libc-compatible symbols for `LD_PRELOAD` interposition, and every later phase
+stacks more systems work (scheduling, syscall interception, process
+orchestration) on top.
+
+- **Rust** compiles to a `cdylib` with `#[no_mangle] extern "C"` symbols and —
+  critically — brings **no runtime** into the target process. Code inside an
+  interposed `malloc` or `read` cannot tolerate a GC, signal-based scheduler,
+  or lazy runtime init.
+- **Go is disqualified**: `c-shared` libraries embed the Go runtime
+  (goroutine scheduler, GC, signal handlers) into the intercepted process,
+  which is both fragile under interposition and itself a source of
+  nondeterminism — the exact thing we're removing.
+- **C/C++ would work** for the shim but costs memory safety across eight
+  phases of scheduler/fuzzer/fault-engine logic, where Rust's ownership model
+  pays for itself. `unsafe` is confined to the interposition boundary and
+  gated by `clippy::undocumented_unsafe_blocks = deny` (every unsafe block
+  needs a `// SAFETY:` comment).
+- **Zig** was considered (excellent for this niche) but has a far thinner
+  ecosystem for the CLI/orchestrator/fuzzer layers and a less stable compiler.
+
+Toolchain: stable Rust, edition 2021, MSRV 1.84 (recorded in
+`workspace.package.rust-version`; CI pins nothing newer than stable).
+
+## Directory layout (full eventual shape)
+
+Cargo workspace. Only `crates/weft-dst` exists today; the rest are reserved
+homes so later phases never renegotiate structure:
+
+```
+weft-dst-app/
+├── Cargo.toml              # workspace root (lints, shared package metadata)
+├── crates/
+│   ├── weft-dst/           # TODAY: CLI + orchestrator. `weft` binary lives here.
+│   │                       #   Owns run configuration, seed management, and
+│   │                       #   launching targets under the shim.
+│   ├── weft-shim/          # Phase 1: cdylib LD_PRELOAD shim. libc-compatible
+│   │                       #   `#[no_mangle]` symbols; talks to the orchestrator
+│   │                       #   over a control channel. NO std beyond what's safe
+│   │                       #   inside interposed calls.
+│   ├── weft-abi/           # Phase 1: shared wire types between shim and
+│   │                       #   orchestrator (kept dependency-free; the shim
+│   │                       #   links it into the target process).
+│   ├── weft-sched/         # Phase 2: deterministic scheduler — decides which
+│   │                       #   intercepted thread proceeds; virtual clock; PRNG.
+│   ├── weft-net/           # Phase 3: simulated network — intercepted sockets
+│   │                       #   routed through an in-memory fabric (latency,
+│   │                       #   partitions, reorder, duplication).
+│   ├── weft-faults/        # Phase 4: fault engine — schedules crashes, disk
+│   │                       #   errors, ENOSPC/EIO injection, clock skew.
+│   ├── weft-replay/        # Phase 5: recording & replay — trace format,
+│   │                       #   seed→schedule reproduction, divergence detection.
+│   ├── weft-fuzz/          # Phase 6: schedule/fault fuzzer — mutates seeds and
+│   │                       #   schedules, coverage-ish feedback, corpus mgmt.
+│   └── weft-harness/       # Phases 7–8: real-world integration harness —
+│                           #   runs actual systems (e.g. a KV store, a raft
+│                           #   impl) under Weft; regression suites; examples.
+├── tests/                  # cross-crate end-to-end tests (real binaries under
+│                           #   the shim; Linux-only, gated by cfg/CI matrix)
+├── examples/               # small target programs used in docs and e2e tests
+├── docs/                   # design docs, one per subsystem, written per phase
+└── .github/workflows/      # CI (see below)
+```
+
+Rules of thumb already decided:
+- The shim (`weft-shim`) stays minimal and panic-free; policy lives in the
+  orchestrator, mechanism lives in the shim.
+- Anything loaded into the target process (`weft-shim`, `weft-abi`) keeps a
+  near-zero dependency tree.
+- Linux is the supported target for interception. macOS is a dev platform for
+  the orchestrator/CLI only (interposition differs: `DYLD_INSERT_LIBRARIES`);
+  do not chase mac parity for the shim.
+
+## CI (`.github/workflows/ci.yml`) — blocking gates from Phase 0
+
+Runs on every push and PR, on `ubuntu-latest`:
+
+1. **Lint (blocking):** `cargo fmt --check` + `cargo clippy --workspace
+   --all-targets -- -D warnings` (workspace lints already set clippy
+   `all`+`pedantic` to warn, promoted to errors here).
+2. **Vulnerability audit (blocking):** `cargo deny check advisories`
+   (RustSec database).
+3. **License compliance (blocking):** `cargo deny check licenses bans sources`
+   — allow-list lives in `deny.toml` (permissive licenses only; copyleft
+   rejected because the shim links into arbitrary user processes).
+4. **Tests:** `cargo test --workspace`.
+5. **Coverage (non-blocking report):** `cargo llvm-cov` → uploads to Codecov
+   if `CODECOV_TOKEN` is configured; job succeeds regardless so forks aren't
+   broken.
+
+`deny.toml` at the repo root controls gates 2–3. When adding a dependency,
+expect CI to fail unless its license is in the allow-list.
+
+## Phase status
+
+- **Phase 0 (done, this repo state):** skeleton workspace, `weft` CLI stub
+  (`--help`/`--version` only), CI with the three blocking gates, community
+  files (SECURITY, CODE_OF_CONDUCT, CONTRIBUTING, issue/PR templates,
+  CHANGELOG in Keep-a-Changelog format, GOVERNANCE stub), graphify workflow
+  proven out (`.graphifyignore` tuned so reports stay signal-only).
+- **Phase 1 (next):** create `crates/weft-shim` (cdylib) + `crates/weft-abi`.
+  Interpose a first symbol set (start with `time`/`clock_gettime`/`random` —
+  smallest deterministic win), verify with `LD_PRELOAD` against `/bin/date`
+  or similar on Linux, add e2e test under `tests/` gated to Linux CI.
+  Argument parsing in the CLI stays hand-rolled until `weft run` lands.
+
+## Working conventions
+
+- Update `CHANGELOG.md` (Unreleased section) in the same change that earns it.
+- Every phase ends with the graphify refresh (top of this file) and a check
+  that `GRAPH_REPORT.md` reflects reality.
+- New subsystem ⇒ new `docs/<subsystem>.md` design note before or with the
+  code.

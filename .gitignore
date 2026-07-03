@@ -1,0 +1,20 @@
+# Rust build artifacts
+/target/
+**/*.rs.bk
+
+# Graphify knowledge-graph output (regenerated per machine; never commit)
+graphify-out/
+
+# Coverage artifacts
+*.profraw
+lcov.info
+codecov.json
+
+# Editor / OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Local Claude Code settings
+.claude/settings.local.json

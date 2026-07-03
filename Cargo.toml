@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+members = ["crates/weft-dst"]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+rust-version = "1.84"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/weft-dst/weft"
+authors = ["Weft contributors"]
+
+[workspace.lints.rust]
+unsafe_code = "allow" # interception shim is unavoidably unsafe; each use must carry a SAFETY comment
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+undocumented_unsafe_blocks = "deny"
+
+[profile.release]
+debug = true # keep symbols: replay/trace tooling needs them

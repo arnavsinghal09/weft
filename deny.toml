@@ -1,0 +1,35 @@
+# cargo-deny configuration — enforced as blocking CI gates.
+# Docs: https://embarkstudios.github.io/cargo-deny/
+
+[graph]
+all-features = true
+
+[advisories]
+# RustSec advisories: any vulnerability in the dependency tree fails CI.
+version = 2
+yanked = "deny"
+
+[licenses]
+version = 2
+# Permissive-only. Copyleft is deliberately excluded: weft-shim is loaded into
+# arbitrary user processes, and viral licensing there is unacceptable.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+]
+confidence-threshold = 0.9
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

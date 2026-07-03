@@ -1,0 +1,33 @@
+# Keep the knowledge graph focused on source + docs. Everything below is
+# either machine-generated, binary, or per-user noise that would pollute
+# GRAPH_REPORT.md with meaningless nodes.
+
+# Build artifacts and binaries
+target/
+*.so
+*.dylib
+*.a
+*.o
+*.rlib
+*.bin
+
+# Graphify's own output (never re-ingest the graph)
+graphify-out/
+
+# Lockfiles and generated manifests (dependency lists, not design)
+Cargo.lock
+
+# Per-user tool state
+.claude/
+.git/
+.github/ISSUE_TEMPLATE/
+.github/PULL_REQUEST_TEMPLATE.md
+
+# License boilerplate (standard text, zero graph value)
+LICENSE-MIT
+LICENSE-APACHE
+
+# Coverage / profiling artifacts
+*.profraw
+lcov.info
+codecov.json
