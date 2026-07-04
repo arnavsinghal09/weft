@@ -1,0 +1,29 @@
+# The LD_PRELOAD interception shim. Built as a cdylib (`libweft_shim.so`)
+# that exposes libc-compatible symbols; also built as an rlib so unit tests
+# and sanitizers can exercise the engine and the hook entry points in-process.
+#
+# Dependency policy: this crate is loaded into arbitrary user processes.
+# Only no_std-capable, allocation-light, permissively-licensed deps allowed.
+[package]
+name = "weft-shim"
+description = "LD_PRELOAD determinism shim for the Weft DST framework"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false # loaded by path from `weft run`; not a library API
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+weft-abi = { workspace = true }
+weft-net = { workspace = true }
+libc = { workspace = true }
+rand_chacha = { workspace = true, default-features = false }
+rand_core = { workspace = true, default-features = false }
+
+[lints]
+workspace = true

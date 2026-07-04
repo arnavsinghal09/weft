@@ -21,6 +21,8 @@ name = "weft_dst"
 path = "src/lib.rs"
 
 [dependencies]
+weft-abi = { workspace = true }
+weft-net = { workspace = true }
 
 [lints]
 workspace = true

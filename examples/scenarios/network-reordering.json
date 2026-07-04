@@ -1,0 +1,15 @@
+{
+  "name": "network-reordering",
+  "description": "Network with variable latency causes message reordering, triggering a replica divergence bug",
+  "seed": 1,
+  "nodes": [
+    {"node_id": 0, "program": "./target/debug/examples/kvreplica", "args": ["--role=writer"]},
+    {"node_id": 1, "program": "./target/debug/examples/kvreplica", "args": ["--role=replica"]}
+  ],
+  "network": {
+    "latency": "uniform:1000-50000",
+    "loss": 0.0,
+    "partitions": null
+  },
+  "events": []
+}

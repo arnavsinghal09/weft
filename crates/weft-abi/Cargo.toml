@@ -1,0 +1,17 @@
+# Shared contract between the `weft` orchestrator and `weft-shim`.
+# This crate is linked INTO arbitrary user processes via the shim, so it must
+# stay dependency-free and allocation-free.
+[package]
+name = "weft-abi"
+description = "Shared constants and seed plumbing for the Weft DST framework"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

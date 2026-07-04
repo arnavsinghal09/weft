@@ -5,6 +5,8 @@
 //! system live in sibling crates under `crates/` as they are built out
 //! (see `PROJECT_NOTES.md` at the repository root for the full layout).
 
+pub mod run;
+
 /// Weft's own version, as baked in at compile time.
 #[must_use]
 pub fn version() -> &'static str {

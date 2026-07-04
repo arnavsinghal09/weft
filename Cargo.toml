@@ -1,6 +1,13 @@
 [workspace]
 resolver = "2"
-members = ["crates/weft-dst"]
+members = ["crates/weft-dst", "crates/weft-abi", "crates/weft-shim", "crates/weft-net", "crates/weft-scenario"]
+
+[workspace.dependencies]
+weft-abi = { path = "crates/weft-abi", version = "0.0.1" }
+weft-net = { path = "crates/weft-net", version = "0.0.1" }
+libc = "0.2"
+rand_chacha = { version = "0.3", default-features = false }
+rand_core = { version = "0.6", default-features = false }
 
 [workspace.package]
 version = "0.0.1"
@@ -17,6 +24,9 @@ unsafe_code = "allow" # interception shim is unavoidably unsafe; each use must c
 all = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
 undocumented_unsafe_blocks = "deny"
+# Doc comments here are full of algorithm names (ChaCha8, SplitMix64,
+# PractRand) that are prose, not code items; the lint is all noise for us.
+doc_markdown = "allow"
 
 [profile.release]
 debug = true # keep symbols: replay/trace tooling needs them

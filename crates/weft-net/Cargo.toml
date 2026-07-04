@@ -1,0 +1,17 @@
+[package]
+name = "weft-net"
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+authors = { workspace = true }
+description = "Weft network simulation: wire protocol, seeded fault model, and broker"
+
+[dependencies]
+weft-abi = { workspace = true }
+rand_chacha = { workspace = true }
+rand_core = { workspace = true }
+
+[lints]
+workspace = true
