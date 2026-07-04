@@ -14,6 +14,7 @@
 use std::collections::{BinaryHeap, HashMap};
 use std::io;
 use std::os::unix::net::{UnixListener, UnixStream};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 
@@ -74,6 +75,10 @@ struct State {
 pub struct Broker {
     listener: UnixListener,
     shared: Arc<(Mutex<State>, Condvar)>,
+    /// Global logical time (nanoseconds) for process orchestration.
+    /// Updated as messages are delivered. Used by event scheduler to trigger
+    /// crashes, restarts, and partition changes at deterministic times.
+    pub global_logical_time: Arc<AtomicU64>,
 }
 
 impl Broker {
@@ -97,6 +102,7 @@ impl Broker {
                 }),
                 Condvar::new(),
             )),
+            global_logical_time: Arc::new(AtomicU64::new(0)),
         })
     }
 
@@ -112,7 +118,8 @@ impl Broker {
             let Ok(stream) = stream else { break };
             self.shared.0.lock().unwrap().conns.insert(id, Conn::default());
             let shared = Arc::clone(&self.shared);
-            thread::spawn(move || handle_conn(id, stream, &shared));
+            let global_time = Arc::clone(&self.global_logical_time);
+            thread::spawn(move || handle_conn(id, stream, &shared, &global_time));
         }
     }
 
@@ -128,7 +135,12 @@ impl Broker {
     }
 }
 
-fn handle_conn(id: usize, stream: UnixStream, shared: &Arc<(Mutex<State>, Condvar)>) {
+fn handle_conn(
+    id: usize,
+    stream: UnixStream,
+    shared: &Arc<(Mutex<State>, Condvar)>,
+    global_time: &Arc<AtomicU64>,
+) {
     let mut reader = io::BufReader::new(stream.try_clone().expect("dup unix stream"));
     let mut writer = stream;
 
@@ -143,7 +155,7 @@ fn handle_conn(id: usize, stream: UnixStream, shared: &Arc<(Mutex<State>, Condva
                 let _ = write_from_broker(&mut writer, &FromBroker::Ack);
             }
             ToBroker::Send { src, dst, payload } => {
-                route_send(shared, src, dst, &payload);
+                route_send(shared, global_time, src, dst, &payload);
                 let _ = write_from_broker(&mut writer, &FromBroker::Ack);
             }
             ToBroker::Recv { addr: _, blocking } => {
@@ -162,7 +174,13 @@ fn handle_conn(id: usize, stream: UnixStream, shared: &Arc<(Mutex<State>, Condva
     cvar.notify_all();
 }
 
-fn route_send(shared: &Arc<(Mutex<State>, Condvar)>, src: VAddr, dst: VAddr, payload: &[u8]) {
+fn route_send(
+    shared: &Arc<(Mutex<State>, Condvar)>,
+    global_time: &Arc<AtomicU64>,
+    src: VAddr,
+    dst: VAddr,
+    payload: &[u8],
+) {
     let (lock, cvar) = &**shared;
     let mut st = lock.lock().unwrap();
     st.sent += 1;
@@ -193,6 +211,12 @@ fn route_send(shared: &Arc<(Mutex<State>, Condvar)>, src: VAddr, dst: VAddr, pay
             dst,
             payload: payload.to_vec(),
         });
+        // Update global logical time: track the latest delivery time scheduled
+        let current = global_time.load(Ordering::Relaxed);
+        let delivery_time = fate.delay_ns;
+        if delivery_time > current {
+            global_time.store(delivery_time, Ordering::Relaxed);
+        }
         cvar.notify_all();
     }
 }

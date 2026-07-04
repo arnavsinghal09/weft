@@ -11,6 +11,27 @@ minor versions may contain breaking changes.
 
 ### Added
 
+- Process orchestration (Phase 4c): deterministic execution of scheduled
+  crash/restart/partition events. New `weft_dst::orchestrator` module with
+  `NodeRegistry` to track process state and `spawn_scheduler()` to execute
+  events at precise logical times. Global logical time tracking in broker via
+  `Arc<AtomicU64>` updated as network messages are delivered. Event scheduler
+  runs in separate thread, waits for broker time to reach each event's
+  `time_ns`, then kills or restarts processes (SIGKILL to crash, fork/exec to
+  restart). Determinism: same seed + scenario → same crashes at same logical
+  times. 3 integration tests validating: node state tracking, crash execution,
+  and multi-event ordering.
+- File I/O fault hooks (Phase 4b): `write`, `pwrite`, `pwrite64`, `fsync`,
+  `fdatasync` interception in weft-shim. Tracks bytes written for ENOSPC
+  simulation and can optionally lie about fsync persistence via
+  `WEFT_FSYNC_LIES=1`. Enables testing of durability and crash-recovery bugs
+  that require simultaneous network + file I/O faults. New example scenario:
+  `file-sync-network-reordering.json`.
+- Process orchestration design & requirements (Phase 4b): `docs/process-orchestration.md`
+  specifies how scheduled crash/restart/partition events integrate with the
+  broker, including process registry, event scheduler, and state preservation
+  semantics. Includes pseudo-code for orchestrator implementation and
+  validation strategy.
 - Fault model and scenario DSL (Phase 4): timed fault injection framework
   unifying network, file I/O, and process faults on a global logical timeline.
   New `weft-scenario` crate provides JSON-based scenario format with `latency`,

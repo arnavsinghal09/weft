@@ -23,6 +23,8 @@ path = "src/lib.rs"
 [dependencies]
 weft-abi = { workspace = true }
 weft-net = { workspace = true }
+weft-scenario = { workspace = true }
+libc = "0.2"
 
 [lints]
 workspace = true

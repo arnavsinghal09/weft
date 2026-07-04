@@ -151,8 +151,10 @@ version = "0.0.1"
 name = "weft-dst"
 version = "0.0.1"
 dependencies = [
+ "libc",
  "weft-abi",
  "weft-net",
+ "weft-scenario",
 ]
 
 [[package]]

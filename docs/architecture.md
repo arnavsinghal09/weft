@@ -2,8 +2,8 @@
 
 This document describes the implemented deterministic simulation system: Phase 1
 (time & randomness), Phase 2 (thread scheduling), Phase 3 (network simulation),
-and Phase 4 (fault model & scenarios). Aspirational content is confined to the
-final section and clearly marked.
+and Phase 4 (fault model, scenarios, and process orchestration). Aspirational
+content is confined to the final section and clearly marked.
 
 ## Big picture
 
@@ -86,6 +86,10 @@ cooperative scheduler's yield points. See docs/scheduling-model.md.
 **Network (Phase 3)** — `socket` (`AF_INET`/`SOCK_DGRAM` only), `bind`,
 `sendto`, `recvfrom` — diverted to the seeded broker when `WEFT_BROKER` is
 set. See docs/network-model.md.
+
+**File I/O (Phase 4)** — `write`, `pwrite`, `pwrite64`, `fsync`, `fdatasync`
+— track bytes written and optionally lie about fsync persistence when
+`WEFT_FSYNC_LIES=1` is set. See docs/process-orchestration.md.
 
 ### The virtual clock
 

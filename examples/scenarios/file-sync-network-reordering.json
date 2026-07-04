@@ -1,0 +1,28 @@
+{
+  "name": "file-sync-network-reordering",
+  "description": "Multi-fault scenario: fsync_lies + network reordering causes divergence. Bug manifests ONLY when both faults are present.",
+  "seed": 42,
+  "nodes": [
+    {"node_id": 0, "program": "./target/debug/examples/kvreplica", "args": ["--role=writer", "--batch=5"]},
+    {"node_id": 1, "program": "./target/debug/examples/kvreplica", "args": ["--role=replica", "--durability=fsync"]}
+  ],
+  "network": {
+    "latency": "uniform:500-10000",
+    "loss": 0.0,
+    "partitions": null
+  },
+  "filesystem": {
+    "0": {
+      "fsync_lies": true,
+      "enospc_after_bytes": null,
+      "torn_write_probability": 0.0
+    },
+    "1": {
+      "fsync_lies": true,
+      "enospc_after_bytes": null,
+      "torn_write_probability": 0.0
+    }
+  },
+  "time_skew": {},
+  "events": []
+}

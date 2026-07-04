@@ -5,6 +5,7 @@ members = ["crates/weft-dst", "crates/weft-abi", "crates/weft-shim", "crates/wef
 [workspace.dependencies]
 weft-abi = { path = "crates/weft-abi", version = "0.0.1" }
 weft-net = { path = "crates/weft-net", version = "0.0.1" }
+weft-scenario = { path = "crates/weft-scenario", version = "0.1.0" }
 libc = "0.2"
 rand_chacha = { version = "0.3", default-features = false }
 rand_core = { version = "0.6", default-features = false }

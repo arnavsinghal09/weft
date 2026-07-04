@@ -5,6 +5,7 @@
 
 pub mod aux;
 pub mod dev;
+pub mod file;
 pub mod rand;
 pub mod socket;
 pub mod thread;
