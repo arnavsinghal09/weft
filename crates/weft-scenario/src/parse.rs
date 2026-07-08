@@ -1,7 +1,6 @@
 //! Scenario parsing and validation with detailed error messages.
 
 use crate::{LatencyDistribution, NetworkFaults, Scenario};
-use serde_json;
 use thiserror::Error;
 
 /// Detailed scenario parsing or validation error.
@@ -40,8 +39,8 @@ pub fn parse_scenario_yaml(text: &str) -> Result<Scenario, ScenarioError> {
 
 /// Parse a scenario from JSON text.
 pub fn parse_scenario(text: &str) -> Result<Scenario, ScenarioError> {
-    let mut scenario: Scenario = serde_json::from_str(text)
-        .map_err(|e| ScenarioError::ParseError(e.to_string()))?;
+    let mut scenario: Scenario =
+        serde_json::from_str(text).map_err(|e| ScenarioError::ParseError(e.to_string()))?;
 
     // Validate network faults if present.
     if let Some(net) = &scenario.network {
@@ -87,7 +86,10 @@ fn validate_network_faults(faults: &NetworkFaults) -> Result<(), ScenarioError> 
     Ok(())
 }
 
-fn validate_filesystem_faults(_node_id: usize, faults: &crate::FileSystemFaults) -> Result<(), ScenarioError> {
+fn validate_filesystem_faults(
+    _node_id: usize,
+    faults: &crate::FileSystemFaults,
+) -> Result<(), ScenarioError> {
     if let Some(prob) = faults.torn_write_probability {
         if !(0.0..=1.0).contains(&prob) {
             return Err(ScenarioError::InvalidLossProbability(prob));
@@ -135,7 +137,8 @@ mod tests {
 
     #[test]
     fn parse_minimal_scenario() {
-        let json = r#"{"name":"test","seed":42,"nodes":[{"node_id":0,"program":"./prog","args":[]}]}"#;
+        let json =
+            r#"{"name":"test","seed":42,"nodes":[{"node_id":0,"program":"./prog","args":[]}]}"#;
         let scenario = parse_scenario_yaml(json).unwrap();
         assert_eq!(scenario.name, "test");
         assert_eq!(scenario.seed, 42);

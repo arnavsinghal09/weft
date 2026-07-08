@@ -106,7 +106,11 @@ fn same_seed_is_byte_identical() {
     for (prog, args) in cases {
         let first = stdout_lenient(9, &[], prog, args);
         for _ in 0..12 {
-            assert_eq!(first, stdout_lenient(9, &[], prog, args), "{prog} not reproducible");
+            assert_eq!(
+                first,
+                stdout_lenient(9, &[], prog, args),
+                "{prog} not reproducible"
+            );
         }
     }
 }
@@ -116,9 +120,17 @@ fn same_seed_is_byte_identical() {
 /// across at least some seeds.
 #[test]
 fn different_seeds_explore_different_interleavings() {
-    let outputs: Vec<String> = (0..12).map(|s| stdout_of(s, &[], "thread_churn", &["16"])).collect();
-    let distinct = outputs.iter().collect::<std::collections::HashSet<_>>().len();
-    assert!(distinct > 1, "seed had no effect on interleaving: {outputs:?}");
+    let outputs: Vec<String> = (0..12)
+        .map(|s| stdout_of(s, &[], "thread_churn", &["16"]))
+        .collect();
+    let distinct = outputs
+        .iter()
+        .collect::<std::collections::HashSet<_>>()
+        .len();
+    assert!(
+        distinct > 1,
+        "seed had no effect on interleaving: {outputs:?}"
+    );
 }
 
 /// The race proof: a specific seed reliably triggers the lost-update race, and
@@ -131,8 +143,16 @@ fn race_is_triggered_and_avoided_deterministically() {
     let trigger = "threads=2 iters=2 expected=4 balance=2 lost=2\n";
     let avoid = "threads=2 iters=2 expected=4 balance=4 lost=0\n";
     for _ in 0..20 {
-        assert_eq!(stdout_lenient(3, &[], "race_bank", &["2", "2"]), trigger, "seed 3 must trigger");
-        assert_eq!(stdout_of(2, &[], "race_bank", &["2", "2"]), avoid, "seed 2 must avoid");
+        assert_eq!(
+            stdout_lenient(3, &[], "race_bank", &["2", "2"]),
+            trigger,
+            "seed 3 must trigger"
+        );
+        assert_eq!(
+            stdout_of(2, &[], "race_bank", &["2", "2"]),
+            avoid,
+            "seed 2 must avoid"
+        );
     }
     // The buggy program returns non-zero when it loses an update.
     assert!(!weft_run(3, &[], "race_bank", &["2", "2"]).status.success());
@@ -154,7 +174,10 @@ fn race_is_pervasive_at_scale() {
 #[test]
 fn condvar_producer_consumer_is_correct_and_deterministic() {
     let out = stdout_of(5, &[], "prodcons", &["3", "2", "15"]);
-    assert!(out.contains("match=1"), "producer/consumer lost items: {out}");
+    assert!(
+        out.contains("match=1"),
+        "producer/consumer lost items: {out}"
+    );
     assert_eq!(out, stdout_of(5, &[], "prodcons", &["3", "2", "15"]));
 }
 
@@ -175,7 +198,10 @@ fn both_strategies_are_deterministic() {
 fn deadlock_is_detected_deterministically() {
     // Seeds from the documented scan: 1 deadlocks, 0 completes.
     let dl = weft_run(1, &[], "deadlock", &[]);
-    assert!(!dl.status.success(), "seed 1 should deadlock (non-zero exit)");
+    assert!(
+        !dl.status.success(),
+        "seed 1 should deadlock (non-zero exit)"
+    );
     assert!(
         String::from_utf8_lossy(&dl.stderr).contains("DEADLOCK"),
         "expected a DEADLOCK diagnostic on stderr, got:\n{}",

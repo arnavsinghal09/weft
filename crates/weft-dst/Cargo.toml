@@ -23,8 +23,11 @@ path = "src/lib.rs"
 [dependencies]
 weft-abi = { workspace = true }
 weft-net = { workspace = true }
+weft-fuzz = { workspace = true }
+weft-replay = { workspace = true }
 weft-scenario = { workspace = true }
 libc = "0.2"
+serde_json = "1.0"
 
 [lints]
 workspace = true

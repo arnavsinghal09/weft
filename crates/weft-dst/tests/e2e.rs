@@ -50,7 +50,10 @@ fn built_examples() -> &'static PathBuf {
 
 fn shim_path() -> PathBuf {
     // The shim cdylib lands next to the weft binary in the same profile dir.
-    Path::new(weft_bin()).parent().unwrap().join("libweft_shim.so")
+    Path::new(weft_bin())
+        .parent()
+        .unwrap()
+        .join("libweft_shim.so")
 }
 
 fn weft_run(seed: u64, extra: &[&str], example: &str) -> Output {
@@ -103,8 +106,7 @@ fn different_seeds_mean_different_output() {
         let a = weft_run(1, &[], example);
         let b = weft_run(2, &[], example);
         assert_ne!(
-            a.stdout,
-            b.stdout,
+            a.stdout, b.stdout,
             "{example}: different seeds produced identical stdout — seed is not flowing"
         );
     }
@@ -138,7 +140,10 @@ fn preloaded_but_unseeded_shim_is_invisible() {
     // Real time moved between runs, so output should differ (sanity check
     // that we're genuinely on the passthrough path, not the virtual clock).
     let b = run();
-    assert_ne!(a, b, "unseeded runs were identical — passthrough suspicious");
+    assert_ne!(
+        a, b,
+        "unseeded runs were identical — passthrough suspicious"
+    );
 }
 
 #[test]

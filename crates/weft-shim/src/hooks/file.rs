@@ -8,7 +8,7 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
 
-use libc::{c_int, c_void, size_t, ssize_t, off_t, off64_t};
+use libc::{c_int, c_void, off64_t, off_t, size_t, ssize_t};
 
 use crate::real::real;
 use crate::state::shim;
@@ -16,27 +16,33 @@ use crate::trace::shim_trace;
 
 static BYTES_WRITTEN: AtomicU64 = AtomicU64::new(0);
 
+/// Whether `fsync`/`fdatasync` should lie (`WEFT_FSYNC_LIES=1`), parsed once.
+/// Hooks must not call `std::env::var` per call: it allocates.
+fn fsync_lies() -> bool {
+    static FSYNC_LIES: OnceLock<bool> = OnceLock::new();
+    *FSYNC_LIES.get_or_init(|| std::env::var("WEFT_FSYNC_LIES").is_ok_and(|v| v == "1"))
+}
+
 /// Deterministic `write(2)`: track bytes written for ENOSPC injection.
+///
+/// No tracing here: [`crate::trace`] emits via `write(2)`, which resolves to
+/// this very hook under interposition, so a trace line from inside `write`
+/// would recurse without bound.
 ///
 /// # Safety
 ///
 /// `buf` must be valid for `count` bytes, per the libc contract.
 #[no_mangle]
 pub unsafe extern "C" fn write(fd: c_int, buf: *const c_void, count: size_t) -> ssize_t {
-    let Some(s) = shim() else {
-        return real(libc::write)(fd, buf, count);
-    };
-
-    // For now, just track bytes written. File I/O fault config would come from
-    // environment or scenario data passed to the shim.
-    // Future: check WEFT_ENOSPC_BYTES and return -ENOSPC if exceeded.
-    BYTES_WRITTEN.fetch_add(count as u64, Ordering::Relaxed);
-
-    if s.trace {
-        shim_trace(&format!("write({fd}, {count}) -> bytes_written={}", BYTES_WRITTEN.load(Ordering::Relaxed)));
+    if shim().is_some() {
+        // For now, just track bytes written. File I/O fault config would come
+        // from environment or scenario data passed to the shim.
+        // Future: check WEFT_ENOSPC_BYTES and return -ENOSPC if exceeded.
+        BYTES_WRITTEN.fetch_add(count as u64, Ordering::Relaxed);
     }
 
-    real(libc::write)(fd, buf, count)
+    // SAFETY: forwarding the caller's arguments unchanged to real write().
+    unsafe { real!(write: fn(c_int, *const c_void, size_t) -> ssize_t)(fd, buf, count) }
 }
 
 /// Deterministic `pwrite(2)`: same as write but with offset.
@@ -45,18 +51,21 @@ pub unsafe extern "C" fn write(fd: c_int, buf: *const c_void, count: size_t) -> 
 ///
 /// `buf` must be valid for `count` bytes, per the libc contract.
 #[no_mangle]
-pub unsafe extern "C" fn pwrite(fd: c_int, buf: *const c_void, count: size_t, offset: off_t) -> ssize_t {
-    let Some(s) = shim() else {
-        return real(libc::pwrite)(fd, buf, count, offset);
-    };
-
-    BYTES_WRITTEN.fetch_add(count as u64, Ordering::Relaxed);
-
-    if s.trace {
-        shim_trace(&format!("pwrite({fd}, {count}, {offset})"));
+pub unsafe extern "C" fn pwrite(
+    fd: c_int,
+    buf: *const c_void,
+    count: size_t,
+    offset: off_t,
+) -> ssize_t {
+    if let Some(s) = shim() {
+        BYTES_WRITTEN.fetch_add(count as u64, Ordering::Relaxed);
+        shim_trace!(s, "pwrite({fd}, {count}, {offset})");
     }
 
-    real(libc::pwrite)(fd, buf, count, offset)
+    // SAFETY: forwarding the caller's arguments unchanged to real pwrite().
+    unsafe {
+        real!(pwrite: fn(c_int, *const c_void, size_t, off_t) -> ssize_t)(fd, buf, count, offset)
+    }
 }
 
 /// Deterministic `pwrite64(2)`: same as pwrite but with 64-bit offset.
@@ -65,18 +74,23 @@ pub unsafe extern "C" fn pwrite(fd: c_int, buf: *const c_void, count: size_t, of
 ///
 /// `buf` must be valid for `count` bytes, per the libc contract.
 #[no_mangle]
-pub unsafe extern "C" fn pwrite64(fd: c_int, buf: *const c_void, count: size_t, offset: off64_t) -> ssize_t {
-    let Some(s) = shim() else {
-        return real(libc::pwrite64)(fd, buf, count, offset);
-    };
-
-    BYTES_WRITTEN.fetch_add(count as u64, Ordering::Relaxed);
-
-    if s.trace {
-        shim_trace(&format!("pwrite64({fd}, {count}, {offset})"));
+pub unsafe extern "C" fn pwrite64(
+    fd: c_int,
+    buf: *const c_void,
+    count: size_t,
+    offset: off64_t,
+) -> ssize_t {
+    if let Some(s) = shim() {
+        BYTES_WRITTEN.fetch_add(count as u64, Ordering::Relaxed);
+        shim_trace!(s, "pwrite64({fd}, {count}, {offset})");
     }
 
-    real(libc::pwrite64)(fd, buf, count, offset)
+    // SAFETY: forwarding the caller's arguments unchanged to real pwrite64().
+    unsafe {
+        real!(pwrite64: fn(c_int, *const c_void, size_t, off64_t) -> ssize_t)(
+            fd, buf, count, offset,
+        )
+    }
 }
 
 /// Deterministic `fsync(2)`: optionally returns success without persisting.
@@ -86,25 +100,19 @@ pub unsafe extern "C" fn pwrite64(fd: c_int, buf: *const c_void, count: size_t, 
 #[no_mangle]
 pub extern "C" fn fsync(fd: c_int) -> c_int {
     let Some(s) = shim() else {
-        return real(libc::fsync)(fd);
+        // SAFETY: forwarding the caller's argument unchanged to real fsync().
+        return unsafe { real!(fsync: fn(c_int) -> c_int)(fd) };
     };
 
-    // Check if fsync_lies is enabled. For now, hardcode off; future work will
-    // read this from scenario config passed via environment (e.g., WEFT_FSYNC_LIES=1).
-    let fsync_lies = std::env::var("WEFT_FSYNC_LIES").is_ok_and(|v| v == "1");
-
-    if fsync_lies {
-        if s.trace {
-            shim_trace(&format!("fsync({fd}) -> success (lies)"));
-        }
+    if fsync_lies() {
+        shim_trace!(s, "fsync({fd}) -> success (lies)");
         return 0; // Return success without actually syncing.
     }
 
-    if s.trace {
-        shim_trace(&format!("fsync({fd})"));
-    }
+    shim_trace!(s, "fsync({fd})");
 
-    real(libc::fsync)(fd)
+    // SAFETY: forwarding the caller's argument unchanged to real fsync().
+    unsafe { real!(fsync: fn(c_int) -> c_int)(fd) }
 }
 
 /// Deterministic `fdatasync(2)`: similar to fsync_lies but for data only.
@@ -116,23 +124,19 @@ pub extern "C" fn fsync(fd: c_int) -> c_int {
 #[no_mangle]
 pub extern "C" fn fdatasync(fd: c_int) -> c_int {
     let Some(s) = shim() else {
-        return real(libc::fdatasync)(fd);
+        // SAFETY: forwarding the caller's argument unchanged to real fdatasync().
+        return unsafe { real!(fdatasync: fn(c_int) -> c_int)(fd) };
     };
 
-    let fsync_lies = std::env::var("WEFT_FSYNC_LIES").is_ok_and(|v| v == "1");
-
-    if fsync_lies {
-        if s.trace {
-            shim_trace(&format!("fdatasync({fd}) -> success (lies)"));
-        }
+    if fsync_lies() {
+        shim_trace!(s, "fdatasync({fd}) -> success (lies)");
         return 0;
     }
 
-    if s.trace {
-        shim_trace(&format!("fdatasync({fd})"));
-    }
+    shim_trace!(s, "fdatasync({fd})");
 
-    real(libc::fdatasync)(fd)
+    // SAFETY: forwarding the caller's argument unchanged to real fdatasync().
+    unsafe { real!(fdatasync: fn(c_int) -> c_int)(fd) }
 }
 
 /// Return total bytes written by this process (for testing/validation).

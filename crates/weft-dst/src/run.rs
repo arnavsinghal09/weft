@@ -30,6 +30,9 @@ Options:
                       partition=0+1|2 (an empty SPEC is a reliable network)
   --nodes <N>         With --net: launch N instances of the program, node ids
                       0..N-1 (default 1)
+  --record <LOG>      With --net: record every broker operation to <LOG> for
+                      later `weft replay`; a .gz path is gzip-compressed
+                      (see docs/recording-format.md)
   --trace, --verbose  Log every intercepted call to stderr
   --stats             Print scheduler statistics at exit
   --shim <PATH>       Path to libweft_shim.so (default: WEFT_SHIM env,
@@ -46,6 +49,8 @@ pub struct RunOpts {
     /// Network-condition spec; `Some` engages the broker (even if empty).
     pub net: Option<String>,
     pub nodes: u32,
+    /// Record broker operations to this weft-log file (requires `--net`).
+    pub record: Option<PathBuf>,
     pub shim: Option<PathBuf>,
     pub program: Vec<OsString>,
 }
@@ -56,6 +61,7 @@ pub struct RunOpts {
 ///
 /// Returns a human-readable message for missing/invalid `--seed`, an unknown
 /// option, or a missing program.
+#[allow(clippy::too_many_lines)] // one match arm per flag; splitting obscures it
 pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, String> {
     let mut args = args.into_iter();
     let mut seed: Option<u64> = None;
@@ -65,6 +71,7 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
     let mut strategy = Strategy::default();
     let mut net = None;
     let mut nodes = 1u32;
+    let mut record = None;
     let mut shim = None;
     let mut program = Vec::new();
 
@@ -74,14 +81,18 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
                 let v = args
                     .next()
                     .ok_or_else(|| "--seed requires a value".to_string())?;
-                let v = v.to_str().ok_or_else(|| "--seed value is not UTF-8".to_string())?;
+                let v = v
+                    .to_str()
+                    .ok_or_else(|| "--seed value is not UTF-8".to_string())?;
                 seed = Some(weft_abi::parse_seed(v).map_err(|e| format!("--seed {v:?}: {e}"))?);
             }
             Some("--strategy") => {
                 let v = args
                     .next()
                     .ok_or_else(|| "--strategy requires a value".to_string())?;
-                let v = v.to_str().ok_or_else(|| "--strategy value is not UTF-8".to_string())?;
+                let v = v
+                    .to_str()
+                    .ok_or_else(|| "--strategy value is not UTF-8".to_string())?;
                 strategy = Strategy::parse(v).map_err(|e| format!("--strategy {v:?}: {e}"))?;
             }
             Some("--trace" | "--verbose") => trace = true,
@@ -91,7 +102,9 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
                 let v = args
                     .next()
                     .ok_or_else(|| "--net requires a spec (may be empty: \"\")".to_string())?;
-                let v = v.to_str().ok_or_else(|| "--net spec is not UTF-8".to_string())?;
+                let v = v
+                    .to_str()
+                    .ok_or_else(|| "--net spec is not UTF-8".to_string())?;
                 // Validate eagerly so a typo fails before anything launches.
                 weft_net::config::parse(0, v).map_err(|e| format!("--net: {e}"))?;
                 net = Some(v.to_string());
@@ -100,13 +113,21 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
                 let v = args
                     .next()
                     .ok_or_else(|| "--nodes requires a count".to_string())?;
-                let v = v.to_str().ok_or_else(|| "--nodes value is not UTF-8".to_string())?;
+                let v = v
+                    .to_str()
+                    .ok_or_else(|| "--nodes value is not UTF-8".to_string())?;
                 nodes = v
                     .parse()
                     .map_err(|_| format!("--nodes {v:?} is not a positive integer"))?;
                 if nodes == 0 || nodes > 64 {
                     return Err("--nodes must be in 1..=64".to_string());
                 }
+            }
+            Some("--record") => {
+                let v = args
+                    .next()
+                    .ok_or_else(|| "--record requires a log path".to_string())?;
+                record = Some(PathBuf::from(v));
             }
             Some("--shim") => {
                 let v = args
@@ -135,6 +156,9 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
     if nodes > 1 && net.is_none() {
         return Err("--nodes requires --net (nodes communicate through the broker)".to_string());
     }
+    if record.is_some() && net.is_none() {
+        return Err("--record requires --net (recording captures broker operations)".to_string());
+    }
     Ok(RunOpts {
         seed,
         trace,
@@ -143,6 +167,7 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
         strategy,
         net,
         nodes,
+        record,
         shim,
         program,
     })
@@ -221,7 +246,10 @@ pub fn exec(opts: &RunOpts) -> String {
         Err(e) => return e,
     };
     let err = target_command(opts, &shim_path).exec(); // replaces this process on success
-    format!("failed to exec {:?}: {err}", opts.program[0].to_string_lossy())
+    format!(
+        "failed to exec {:?}: {err}",
+        opts.program[0].to_string_lossy()
+    )
 }
 
 /// Run the target under network simulation: host the seeded broker in this
@@ -241,8 +269,31 @@ pub fn run_cluster(opts: &RunOpts) -> Result<i32, String> {
     // A per-run socket path (pid disambiguates concurrent weft runs).
     let sock_path = std::env::temp_dir().join(format!("weft-broker-{}.sock", std::process::id()));
     let _ = std::fs::remove_file(&sock_path);
-    let broker =
-        weft_net::Broker::bind(&sock_path, model).map_err(|e| format!("broker bind: {e}"))?;
+
+    // With --record, every broker operation is captured in linearization
+    // order for later `weft replay` (see docs/recording-format.md).
+    let recorder = match &opts.record {
+        Some(log_path) => {
+            let header = weft_replay::Header {
+                format: weft_replay::log::FORMAT.into(),
+                version: weft_replay::log::VERSION,
+                seed: opts.seed,
+                net: spec.to_string(),
+                meta: weft_replay::log::Meta {
+                    weft_version: Some(crate::version().to_string()),
+                    ..weft_replay::log::Meta::default()
+                },
+            };
+            Some(
+                weft_replay::Recorder::create(log_path, &header, Vec::new())
+                    .map_err(|e| format!("--record {}: {e}", log_path.display()))?,
+            )
+        }
+        None => None,
+    };
+    let observer = recorder.as_ref().map(weft_replay::Recorder::observer);
+    let broker = weft_net::Broker::bind_with(&sock_path, model, observer)
+        .map_err(|e| format!("broker bind: {e}"))?;
     let broker = std::sync::Arc::new(broker);
     {
         let broker = std::sync::Arc::clone(&broker);
@@ -281,6 +332,20 @@ pub fn run_cluster(opts: &RunOpts) -> Result<i32, String> {
         let (sent, dropped) = broker.stats();
         eprintln!("[weft] network: {sent} datagram(s) sent, {dropped} dropped");
     }
+    if let Some(rec) = recorder {
+        match rec.finish() {
+            Ok(_) => {
+                if let Some(p) = &opts.record {
+                    eprintln!(
+                        "[weft] recorded to {} (verify: weft replay {})",
+                        p.display(),
+                        p.display()
+                    );
+                }
+            }
+            Err(e) => eprintln!("weft: recording incomplete: {e}"),
+        }
+    }
     let _ = std::fs::remove_file(&sock_path);
     Ok(code)
 }
@@ -315,8 +380,7 @@ mod tests {
 
     #[test]
     fn parses_full_command_line() {
-        let opts =
-            parse_args(os(&["--seed", "0x2a", "--trace", "--", "prog", "-x", "1"])).unwrap();
+        let opts = parse_args(os(&["--seed", "0x2a", "--trace", "--", "prog", "-x", "1"])).unwrap();
         assert_eq!(opts.seed, 42);
         assert!(opts.trace);
         assert_eq!(opts.program, os(&["prog", "-x", "1"]));
@@ -324,15 +388,26 @@ mod tests {
 
     #[test]
     fn rejects_missing_seed_and_missing_program() {
-        assert!(parse_args(os(&["--", "prog"])).unwrap_err().contains("--seed is required"));
-        assert!(parse_args(os(&["--seed", "1"])).unwrap_err().contains("no program"));
+        assert!(parse_args(os(&["--", "prog"]))
+            .unwrap_err()
+            .contains("--seed is required"));
+        assert!(parse_args(os(&["--seed", "1"]))
+            .unwrap_err()
+            .contains("no program"));
         assert!(parse_args(os(&["--seed", "zzz", "--", "p"])).is_err());
     }
 
     #[test]
     fn parses_scheduler_flags() {
         let opts = parse_args(os(&[
-            "--seed", "1", "--strategy", "rr", "--no-sched", "--stats", "--", "p",
+            "--seed",
+            "1",
+            "--strategy",
+            "rr",
+            "--no-sched",
+            "--stats",
+            "--",
+            "p",
         ]))
         .unwrap();
         assert_eq!(opts.strategy, Strategy::RoundRobin);
@@ -341,7 +416,9 @@ mod tests {
         assert!(parse_args(os(&["--seed", "1", "--strategy", "bogus", "--", "p"])).is_err());
         // Strategy defaults to Random when unspecified.
         assert_eq!(
-            parse_args(os(&["--seed", "1", "--", "p"])).unwrap().strategy,
+            parse_args(os(&["--seed", "1", "--", "p"]))
+                .unwrap()
+                .strategy,
             Strategy::Random
         );
     }

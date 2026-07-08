@@ -132,7 +132,10 @@ impl Scenario {
             if id != i {
                 return Err(ScenarioError::InvalidNodeId(
                     id,
-                    format!("nodes must be sequentially numbered; expected {}, got {}", i, id),
+                    format!(
+                        "nodes must be sequentially numbered; expected {}, got {}",
+                        i, id
+                    ),
                 ));
             }
         }

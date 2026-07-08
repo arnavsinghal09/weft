@@ -49,6 +49,12 @@ Per-node file system fault configuration:
 | `enospc_after_bytes` | simulate ENOSPC after N bytes written per node | absolute byte count; per-node independent |
 | `torn_write_probability` | probability [0,1] that a write is torn (partially written) on process crash | seeded per-write: fate(seed, node_id, fd, op_seq) |
 
+Implementation status: the scenario parser accepts and validates all three
+fields, but the shim currently implements only `fsync_lies` (enabled per
+process via `WEFT_FSYNC_LIES=1`) plus byte-count tracking in the write hooks.
+`enospc_after_bytes` and `torn_write_probability` are parsed-but-inert until
+the scenario config is plumbed into the shim.
+
 ### Process Orchestration (Phase 4)
 
 Scheduled events control node lifecycle:
@@ -73,6 +79,8 @@ Per-node virtual clock offset:
 ```
 
 Each node's `clock_gettime()` and `sleep()` operate on its skewed timeline. Seed determinism: if skew is specified, the skew values are reproduced; if omitted, each node gets a seed-derived random offset in [-1 year, +1 year).
+
+Implementation status: `time_skew` is parsed and validated, but the offsets are not yet plumbed into the shim's virtual clock; today only the seed-derived realtime offset (Phase 1) applies.
 
 ## Scenario Format (JSON)
 
@@ -157,10 +165,11 @@ All fields except `name`, `seed`, and `nodes` are optional. Defaults:
 
 ## Validation & Error Handling
 
-The scenario parser returns **detailed, actionable errors** on malformed input:
+The scenario parser returns **detailed, actionable errors** on malformed input
+(CLI integration is future work; today the parser is exercised via the
+`weft-scenario` API):
 
 ```
-$ weft run scenarios/bad-scenario.json
 weft run: JSON/YAML parse error: missing field `nodes` at line 1 column 42
 ```
 

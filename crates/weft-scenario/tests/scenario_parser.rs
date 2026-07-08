@@ -2,7 +2,7 @@
 //!
 //! Goal: parser never panics, always returns clear errors.
 
-use weft_scenario::{parse_scenario_yaml, Scenario};
+use weft_scenario::parse_scenario_yaml;
 
 #[test]
 fn parse_minimal_valid_scenario() {
@@ -277,13 +277,18 @@ fn parser_never_panics_on_many_nodes() {
 
 #[test]
 fn parser_never_panics_on_huge_event_list() {
-    let mut json = String::from(r#"{"name":"many-events","seed":42,"nodes":[{"node_id":0,"program":"p","args":[]}],"events":["#);
+    let mut json = String::from(
+        r#"{"name":"many-events","seed":42,"nodes":[{"node_id":0,"program":"p","args":[]}],"events":["#,
+    );
 
     for i in 0..1000 {
         if i > 0 {
             json.push(',');
         }
-        json.push_str(&format!(r#"{{"time_ns":{},"action":{{"type":"crash","node_id":0}}}}"#, i * 1000));
+        json.push_str(&format!(
+            r#"{{"time_ns":{},"action":{{"type":"crash","node_id":0}}}}"#,
+            i * 1000
+        ));
     }
 
     json.push_str("]}");

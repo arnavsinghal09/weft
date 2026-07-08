@@ -1,10 +1,20 @@
 //! Integration tests for process orchestration: crash/restart/partition events.
 
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicU64;
+use std::sync::{Arc, Mutex};
 
-use weft_dst::orchestrator::{NodeRegistry, spawn_scheduler};
+use weft_dst::orchestrator::{spawn_scheduler, NodeRegistry};
 use weft_scenario::Scenario;
+
+/// Spawn a real throwaway child process to act as a node. The scheduler sends
+/// SIGKILL to registered PIDs for crash events, so tests must never register a
+/// made-up PID (it could belong to an unrelated process on the host).
+fn spawn_dummy_node() -> std::process::Child {
+    std::process::Command::new("sleep")
+        .arg("30")
+        .spawn()
+        .expect("spawn dummy node process")
+}
 
 #[test]
 fn node_registry_tracks_state() {
@@ -25,8 +35,8 @@ fn node_registry_tracks_state() {
             },
         ],
         network: None,
-        filesystem: Default::default(),
-        time_skew: Default::default(),
+        filesystem: None,
+        time_skew: None,
         events: vec![],
     };
 
@@ -69,8 +79,8 @@ fn event_scheduler_executes_on_time() {
             args: vec![],
         }],
         network: None,
-        filesystem: Default::default(),
-        time_skew: Default::default(),
+        filesystem: None,
+        time_skew: None,
         events: vec![weft_scenario::ScheduledEvent {
             time_ns: 1000,
             action: weft_scenario::EventAction::Crash { node_id: 0 },
@@ -80,10 +90,11 @@ fn event_scheduler_executes_on_time() {
     let global_time = Arc::new(AtomicU64::new(0));
     let registry = Arc::new(Mutex::new(NodeRegistry::new(&scenario)));
 
-    // Start the node
+    // Start the node (a real throwaway child: the crash event SIGKILLs it)
+    let mut child = spawn_dummy_node();
     {
         let mut reg = registry.lock().unwrap();
-        reg.set_running(0, 9999); // Fake PID
+        reg.set_running(0, child.id());
     }
 
     // Spawn the scheduler
@@ -106,9 +117,10 @@ fn event_scheduler_executes_on_time() {
         Some(weft_dst::orchestrator::NodeStatus::Crashed)
     );
 
-    // Clean up the scheduler thread
+    // Clean up the scheduler thread and reap the killed child
     drop(reg);
     let _ = scheduler_handle.join();
+    let _ = child.wait();
 }
 
 #[test]
@@ -131,8 +143,8 @@ fn event_scheduler_respects_event_ordering() {
             },
         ],
         network: None,
-        filesystem: Default::default(),
-        time_skew: Default::default(),
+        filesystem: None,
+        time_skew: None,
         events: vec![
             weft_scenario::ScheduledEvent {
                 time_ns: 500,
@@ -148,11 +160,13 @@ fn event_scheduler_respects_event_ordering() {
     let global_time = Arc::new(AtomicU64::new(0));
     let registry = Arc::new(Mutex::new(NodeRegistry::new(&scenario)));
 
-    // Start both nodes
+    // Start both nodes (real throwaway children: crash events SIGKILL them)
+    let mut child0 = spawn_dummy_node();
+    let mut child1 = spawn_dummy_node();
     {
         let mut reg = registry.lock().unwrap();
-        reg.set_running(0, 1000);
-        reg.set_running(1, 2000);
+        reg.set_running(0, child0.id());
+        reg.set_running(1, child1.id());
     }
 
     // Spawn scheduler
@@ -198,4 +212,6 @@ fn event_scheduler_respects_event_ordering() {
 
     drop(registry);
     let _ = scheduler_handle.join();
+    let _ = child0.wait();
+    let _ = child1.wait();
 }

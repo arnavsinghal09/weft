@@ -5,7 +5,9 @@
 //! system live in sibling crates under `crates/` as they are built out
 //! (see `PROJECT_NOTES.md` at the repository root for the full layout).
 
+pub mod fuzz_cmd;
 pub mod orchestrator;
+pub mod replay_cmd;
 pub mod run;
 
 /// Weft's own version, as baked in at compile time.

@@ -29,7 +29,10 @@ fn weft_bin() -> &'static str {
 }
 
 fn shim_path() -> PathBuf {
-    Path::new(weft_bin()).parent().unwrap().join("libweft_shim.so")
+    Path::new(weft_bin())
+        .parent()
+        .unwrap()
+        .join("libweft_shim.so")
 }
 
 fn built() -> &'static PathBuf {
@@ -97,12 +100,19 @@ fn two_processes_exchange_messages_deterministically() {
     };
     let (first, code) = weft_net_run(42, "", 2, "pingpong");
     assert_eq!(code, 0, "pingpong failed:\n{first}");
-    assert!(first.contains("PING:") && first.contains("PONG:"), "bad output: {first}");
+    assert!(
+        first.contains("PING:") && first.contains("PONG:"),
+        "bad output: {first}"
+    );
     // The payload is seed-deterministic across repeated runs...
     for _ in 0..5 {
         let (again, code) = weft_net_run(42, "", 2, "pingpong");
         assert_eq!(code, 0);
-        assert_eq!(sorted(&first), sorted(&again), "same seed changed the payload");
+        assert_eq!(
+            sorted(&first),
+            sorted(&again),
+            "same seed changed the payload"
+        );
     }
     // ...and different for a different seed.
     let (other, _) = weft_net_run(7, "", 2, "pingpong");
@@ -120,7 +130,10 @@ fn reordering_bug_is_triggered_and_avoided_deterministically() {
         assert_ne!(code, 0, "stale read must fail the run");
 
         let (out, code) = weft_net_run(0, KV_NET, 1, "kvreplica");
-        assert_eq!(out, "final=8 expected=8 stale=0\n", "seed 0 must stay in order");
+        assert_eq!(
+            out, "final=8 expected=8 stale=0\n",
+            "seed 0 must stay in order"
+        );
         assert_eq!(code, 0);
     }
 }
@@ -143,6 +156,9 @@ fn exponential_latency_is_reproducible_per_seed() {
     for seed in 0..6 {
         let (first, _) = weft_net_run(seed, "latency=exp:20000", 1, "kvreplica");
         let (again, _) = weft_net_run(seed, "latency=exp:20000", 1, "kvreplica");
-        assert_eq!(first, again, "seed {seed} not reproducible under exp latency");
+        assert_eq!(
+            first, again,
+            "seed {seed} not reproducible under exp latency"
+        );
     }
 }

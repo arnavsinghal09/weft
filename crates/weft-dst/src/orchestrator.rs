@@ -30,6 +30,7 @@ pub struct NodeRegistry {
 
 impl NodeRegistry {
     /// Create a new registry for the given scenario.
+    #[must_use]
     pub fn new(scenario: &Scenario) -> Self {
         let mut states = HashMap::new();
         let mut pids = HashMap::new();
@@ -52,11 +53,14 @@ impl NodeRegistry {
     }
 
     /// Get the current state of a node.
+    #[must_use]
     pub fn state(&self, node_id: usize) -> Option<NodeStatus> {
         self.states.get(&node_id).copied()
     }
 
-    /// Get the PID of a running node.
+    /// Get the last-known PID of a node, if it was ever started. The PID is
+    /// deliberately retained after a crash so cleanup (e.g. reaping) can find it.
+    #[must_use]
     pub fn pid(&self, node_id: usize) -> Option<u32> {
         let pid = self.pids.get(&node_id).copied().unwrap_or(0);
         if pid != 0 {
@@ -69,6 +73,11 @@ impl NodeRegistry {
 
 /// Event scheduler: runs in a separate thread and executes events at the
 /// correct logical times.
+///
+/// # Panics
+///
+/// The spawned thread panics if the registry lock is poisoned, which cannot
+/// happen: no holder performs a panicking operation.
 pub fn spawn_scheduler(
     scenario: Arc<Scenario>,
     global_time: Arc<AtomicU64>,
@@ -82,11 +91,12 @@ pub fn spawn_scheduler(
             }
 
             let event = &scenario.events[event_idx];
-            let _current_time = global_time.load(Ordering::Relaxed);
 
             // Wait for the broker to reach this event's time (with a small poll
             // interval). In practice, the broker updates global_time as messages
-            // are delivered, so this loop will exit quickly.
+            // are delivered, so this loop will exit quickly. If logical time
+            // never reaches the event's timestamp, this waits indefinitely; the
+            // caller is expected to detach or abandon the scheduler thread.
             loop {
                 let current = global_time.load(Ordering::Relaxed);
                 if current >= event.time_ns {
@@ -94,20 +104,26 @@ pub fn spawn_scheduler(
                 }
                 // Poll every 1ms to check if time has advanced
                 thread::sleep(Duration::from_millis(1));
-                // Avoid busy-wait: if no progress for 100ms, assume no more
-                // messages coming and proceed (graceful degradation).
             }
 
             // Time reached; execute the event
             match &event.action {
                 EventAction::Crash { node_id } => {
                     let mut reg = registry.lock().unwrap();
-                    if let Some(pid) = reg.pid(*node_id) {
-                        // Send SIGKILL to the process
-                        unsafe {
-                            libc::kill(pid as i32, libc::SIGKILL);
+                    if reg.state(*node_id) == Some(NodeStatus::Running) {
+                        if let Some(pid) = reg.pid(*node_id) {
+                            // A PID that does not fit pid_t cannot name a real
+                            // process; skip the kill rather than wrap.
+                            if let Ok(pid) = libc::pid_t::try_from(pid) {
+                                // SAFETY: kill(2) is always safe to call; a
+                                // stale or invalid pid yields ESRCH/EPERM,
+                                // which we ignore.
+                                unsafe {
+                                    libc::kill(pid, libc::SIGKILL);
+                                }
+                            }
+                            reg.set_crashed(*node_id);
                         }
-                        reg.set_crashed(*node_id);
                     }
                 }
                 EventAction::Start { node_id } => {
@@ -117,13 +133,10 @@ pub fn spawn_scheduler(
                     let mut reg = registry.lock().unwrap();
                     reg.states.insert(*node_id, NodeStatus::Restarting);
                 }
-                EventAction::ActivatePartition { spec: _ } => {
-                    // Partition is stateless in Phase 4; broker doesn't track it yet.
-                    // Future work: pass to broker to filter datagrams.
-                }
-                EventAction::ClearPartition => {
-                    // Clear all partitions (future work with broker integration).
-                }
+                // Partition changes are recognized but inert: the broker does
+                // not track dynamic partitions yet (future work: pass to the
+                // broker to filter datagrams).
+                EventAction::ActivatePartition { .. } | EventAction::ClearPartition => {}
             }
 
             event_idx += 1;
