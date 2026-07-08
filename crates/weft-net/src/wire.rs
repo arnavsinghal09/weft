@@ -214,7 +214,10 @@ fn read_frame(r: &mut impl Read) -> io::Result<Vec<u8>> {
     r.read_exact(&mut len)?;
     let len = u32::from_le_bytes(len);
     if len > MAX_FRAME {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, "frame too large"));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "frame too large",
+        ));
     }
     let mut buf = vec![0u8; len as usize];
     r.read_exact(&mut buf)?;
@@ -252,7 +255,8 @@ pub fn write_from_broker(w: &mut impl Write, m: &FromBroker) -> io::Result<()> {
 /// Propagates I/O errors and reports malformed frames as `InvalidData`.
 pub fn read_from_broker(r: &mut impl Read) -> io::Result<FromBroker> {
     let f = read_frame(r)?;
-    FromBroker::decode(&f).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "bad FromBroker"))
+    FromBroker::decode(&f)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "bad FromBroker"))
 }
 
 #[cfg(test)]
@@ -266,15 +270,26 @@ mod tests {
         let tb = [
             ToBroker::Hello { node_id: 3 },
             ToBroker::Bind { addr: a },
-            ToBroker::Send { src: a, dst: b, payload: vec![1, 2, 3, 255] },
-            ToBroker::Recv { addr: a, blocking: true },
+            ToBroker::Send {
+                src: a,
+                dst: b,
+                payload: vec![1, 2, 3, 255],
+            },
+            ToBroker::Recv {
+                addr: a,
+                blocking: true,
+            },
         ];
         for m in tb {
             assert_eq!(ToBroker::decode(&m.encode()), Some(m));
         }
         let fb = [
             FromBroker::Ack,
-            FromBroker::Deliver { src: a, dst: b, payload: vec![9, 8, 7] },
+            FromBroker::Deliver {
+                src: a,
+                dst: b,
+                payload: vec![9, 8, 7],
+            },
             FromBroker::Empty,
         ];
         for m in fb {

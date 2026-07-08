@@ -2,73 +2,89 @@
 //! the kernel network stack, so the seeded [`FaultModel`] has complete control.
 //!
 //! One Unix-socket connection per virtual socket in a node. A per-connection
-//! handler thread reads [`ToBroker`] requests; shared state (the routing table
-//! and per-connection delivery queues) sits behind one mutex, with a condition
-//! variable to wake blocked `recv`s.
+//! handler thread reads [`ToBroker`] requests; all decisions are made by the
+//! pure [`Core`](crate::core::Core) state machine behind one mutex, with a
+//! condition variable to wake blocked `recv`s. Because replay
+//! (`weft-replay`) drives the same `Core`, live behavior and replayed
+//! behavior cannot drift apart silently.
 //!
 //! Delivery order: the broker treats a burst of sends as concurrent and orders
 //! a destination's queue purely by sampled latency (ties broken by a global
 //! enqueue counter for determinism). This deliberately maximizes reordering
 //! exposure — see docs/network-model.md.
+//!
+//! # Recording
+//!
+//! The lock-serialized order in which requests reach the `Core` is the one
+//! run input that is *not* a pure function of the seed (it depends on how the
+//! OS schedules the node processes). An [`Observer`] installed via
+//! [`Broker::bind_with`] sees every operation at exactly that linearization
+//! point — while the state lock is held — which is what makes a recorded log
+//! a faithful, replayable capture of the run. See docs/recording-format.md.
 
-use std::collections::{BinaryHeap, HashMap};
 use std::io;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 
+use crate::core::{Core, RecvResult, SendResult};
 use crate::fault::FaultModel;
-use crate::wire::{
-    read_to_broker, write_from_broker, FromBroker, ToBroker, VAddr,
-};
+use crate::wire::{read_to_broker, write_from_broker, FromBroker, ToBroker, VAddr};
 
-struct Pending {
-    deliv: u64,
-    tie: u64,
-    src: VAddr,
-    dst: VAddr,
-    payload: Vec<u8>,
+/// One linearized broker operation, delivered to an [`Observer`] at its
+/// linearization point (under the state lock, decisions already made).
+#[derive(Debug)]
+pub enum Observed<'a> {
+    Connect {
+        conn: u64,
+    },
+    Hello {
+        conn: u64,
+        node: u32,
+    },
+    Bind {
+        conn: u64,
+        addr: VAddr,
+    },
+    Send {
+        conn: u64,
+        src: VAddr,
+        dst: VAddr,
+        chan_seq: u64,
+        payload: &'a [u8],
+        result: &'a SendResult,
+    },
+    /// A completed receive. For a blocking request this fires when the pop
+    /// *succeeds* (its linearization point); the empty polls a blocked recv
+    /// makes while waiting are not operations and are not observed.
+    Recv {
+        conn: u64,
+        blocking: bool,
+        result: &'a RecvResult,
+    },
+    Disconnect {
+        conn: u64,
+    },
 }
 
-impl PartialEq for Pending {
-    fn eq(&self, o: &Self) -> bool {
-        (self.deliv, self.tie) == (o.deliv, o.tie)
-    }
-}
-impl Eq for Pending {}
-impl Ord for Pending {
-    fn cmp(&self, o: &Self) -> std::cmp::Ordering {
-        // Reversed so a `BinaryHeap` (max-heap) yields the *smallest*
-        // (deliv, tie) first.
-        (o.deliv, o.tie).cmp(&(self.deliv, self.tie))
-    }
-}
-impl PartialOrd for Pending {
-    fn partial_cmp(&self, o: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(o))
-    }
-}
-
-#[derive(Default)]
-struct Conn {
-    queue: BinaryHeap<Pending>,
-    /// Whether the peer has closed (so a blocked recv can give up).
-    closed: bool,
-}
+/// Callback invoked for every linearized operation, with the core's
+/// virtual-time high-water mark (ns) after the operation. Called while the
+/// broker's state lock is held: implementations must not call back into the
+/// broker and should return quickly.
+pub type Observer = Box<dyn FnMut(u64, Observed<'_>) + Send>;
 
 struct State {
-    model: FaultModel,
-    /// Which connection receives datagrams for a bound address.
-    bound: HashMap<VAddr, usize>,
-    conns: HashMap<usize, Conn>,
-    /// Per-channel (src→dst) datagram counter, feeding the fault model.
-    seq: HashMap<(VAddr, VAddr), u64>,
-    /// Global enqueue counter, the deterministic delivery tiebreaker.
-    tie: u64,
-    /// Total datagrams sent / dropped, for stats.
-    sent: u64,
-    dropped: u64,
+    core: Core,
+    observer: Option<Observer>,
+}
+
+impl State {
+    fn observe(&mut self, ev: Observed<'_>) {
+        if let Some(obs) = &mut self.observer {
+            obs(self.core.vt(), ev);
+        }
+    }
 }
 
 /// A running broker. Clone-free; share via the `Arc` inside.
@@ -87,18 +103,26 @@ impl Broker {
     /// # Errors
     /// Propagates the bind error (e.g. the path already exists).
     pub fn bind(path: &std::path::Path, model: FaultModel) -> io::Result<Self> {
+        Self::bind_with(path, model, None)
+    }
+
+    /// [`Broker::bind`] with an [`Observer`] that records every linearized
+    /// operation (the recording entry point).
+    ///
+    /// # Errors
+    /// Propagates the bind error (e.g. the path already exists).
+    pub fn bind_with(
+        path: &std::path::Path,
+        model: FaultModel,
+        observer: Option<Observer>,
+    ) -> io::Result<Self> {
         let listener = UnixListener::bind(path)?;
         Ok(Self {
             listener,
             shared: Arc::new((
                 Mutex::new(State {
-                    model,
-                    bound: HashMap::new(),
-                    conns: HashMap::new(),
-                    seq: HashMap::new(),
-                    tie: 0,
-                    sent: 0,
-                    dropped: 0,
+                    core: Core::new(model),
+                    observer,
                 }),
                 Condvar::new(),
             )),
@@ -116,7 +140,12 @@ impl Broker {
     pub fn run(&self) {
         for (id, stream) in self.listener.incoming().enumerate() {
             let Ok(stream) = stream else { break };
-            self.shared.0.lock().unwrap().conns.insert(id, Conn::default());
+            let id = id as u64;
+            {
+                let mut st = self.shared.0.lock().unwrap();
+                st.core.connect(id);
+                st.observe(Observed::Connect { conn: id });
+            }
             let shared = Arc::clone(&self.shared);
             let global_time = Arc::clone(&self.global_logical_time);
             thread::spawn(move || handle_conn(id, stream, &shared, &global_time));
@@ -130,13 +159,12 @@ impl Broker {
     /// Same non-condition as [`Self::run`].
     #[must_use]
     pub fn stats(&self) -> (u64, u64) {
-        let st = self.shared.0.lock().unwrap();
-        (st.sent, st.dropped)
+        self.shared.0.lock().unwrap().core.stats()
     }
 }
 
 fn handle_conn(
-    id: usize,
+    id: u64,
     stream: UnixStream,
     shared: &Arc<(Mutex<State>, Condvar)>,
     global_time: &Arc<AtomicU64>,
@@ -147,15 +175,24 @@ fn handle_conn(
     // Serve until EOF or a protocol error ends the connection.
     while let Ok(msg) = read_to_broker(&mut reader) {
         match msg {
-            ToBroker::Hello { .. } => {
+            ToBroker::Hello { node_id } => {
+                // No state change, but the identity is recorded in linear
+                // order so a log names its participants.
+                shared.0.lock().unwrap().observe(Observed::Hello {
+                    conn: id,
+                    node: node_id,
+                });
                 let _ = write_from_broker(&mut writer, &FromBroker::Ack);
             }
             ToBroker::Bind { addr } => {
-                shared.0.lock().unwrap().bound.insert(addr, id);
+                let mut st = shared.0.lock().unwrap();
+                st.core.bind(id, addr);
+                st.observe(Observed::Bind { conn: id, addr });
+                drop(st);
                 let _ = write_from_broker(&mut writer, &FromBroker::Ack);
             }
             ToBroker::Send { src, dst, payload } => {
-                route_send(shared, global_time, src, dst, &payload);
+                route_send(shared, global_time, id, src, dst, &payload);
                 let _ = write_from_broker(&mut writer, &FromBroker::Ack);
             }
             ToBroker::Recv { addr: _, blocking } => {
@@ -169,75 +206,69 @@ fn handle_conn(
     // wake anyone blocked (in case this was the only possible sender).
     let (lock, cvar) = &**shared;
     let mut st = lock.lock().unwrap();
-    st.conns.remove(&id);
-    st.bound.retain(|_, cid| *cid != id);
+    st.core.disconnect(id);
+    st.observe(Observed::Disconnect { conn: id });
     cvar.notify_all();
 }
 
 fn route_send(
     shared: &Arc<(Mutex<State>, Condvar)>,
     global_time: &Arc<AtomicU64>,
+    conn: u64,
     src: VAddr,
     dst: VAddr,
     payload: &[u8],
 ) {
     let (lock, cvar) = &**shared;
     let mut st = lock.lock().unwrap();
-    st.sent += 1;
-
-    let seq = {
-        let e = st.seq.entry((src, dst)).or_insert(0);
-        let v = *e;
-        *e += 1;
-        v
-    };
-    let fate = st.model.fate(src, dst, seq, payload.len());
-    if fate.dropped {
-        st.dropped += 1;
-        return;
-    }
-    let Some(&cid) = st.bound.get(&dst) else {
-        // No socket is bound to the destination: the datagram is discarded,
-        // exactly as a UDP packet to a closed port would be.
-        return;
-    };
-    let tie = st.tie;
-    st.tie += 1;
-    if let Some(conn) = st.conns.get_mut(&cid) {
-        conn.queue.push(Pending {
-            deliv: fate.delay_ns,
-            tie,
-            src,
-            dst,
-            payload: payload.to_vec(),
-        });
-        // Update global logical time: track the latest delivery time scheduled
-        let current = global_time.load(Ordering::Relaxed);
-        let delivery_time = fate.delay_ns;
-        if delivery_time > current {
-            global_time.store(delivery_time, Ordering::Relaxed);
-        }
+    let (chan_seq, result) = st.core.send(src, dst, payload);
+    // Publish the logical clock's high-water mark for the orchestrator.
+    // fetch_max keeps it monotonic even if callers ever race here.
+    global_time.fetch_max(st.core.vt(), Ordering::Relaxed);
+    st.observe(Observed::Send {
+        conn,
+        src,
+        dst,
+        chan_seq,
+        payload,
+        result: &result,
+    });
+    if matches!(result, SendResult::Enqueued { .. }) {
         cvar.notify_all();
     }
 }
 
-fn recv_next(shared: &Arc<(Mutex<State>, Condvar)>, id: usize, blocking: bool) -> FromBroker {
+fn recv_next(shared: &Arc<(Mutex<State>, Condvar)>, id: u64, blocking: bool) -> FromBroker {
     let (lock, cvar) = &**shared;
     let mut st = lock.lock().unwrap();
     loop {
-        if let Some(conn) = st.conns.get_mut(&id) {
-            if let Some(p) = conn.queue.pop() {
-                return FromBroker::Deliver {
-                    src: p.src,
-                    dst: p.dst,
-                    payload: p.payload,
+        let result = st.core.recv(id);
+        match &result {
+            RecvResult::Delivered {
+                src, dst, payload, ..
+            } => {
+                let out = FromBroker::Deliver {
+                    src: *src,
+                    dst: *dst,
+                    payload: payload.clone(),
                 };
+                st.observe(Observed::Recv {
+                    conn: id,
+                    blocking,
+                    result: &result,
+                });
+                return out;
             }
-            if !blocking || conn.closed {
-                return FromBroker::Empty;
+            RecvResult::Empty => {
+                if !blocking || !st.core.is_connected(id) {
+                    st.observe(Observed::Recv {
+                        conn: id,
+                        blocking,
+                        result: &result,
+                    });
+                    return FromBroker::Empty;
+                }
             }
-        } else {
-            return FromBroker::Empty;
         }
         st = cvar.wait(st).unwrap();
     }

@@ -33,7 +33,11 @@ pub enum Latency {
 impl Latency {
     /// Sample a delay from a uniform deviate `u` in `[0, 1)`.
     #[must_use]
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_precision_loss)]
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        clippy::cast_precision_loss
+    )]
     pub fn sample(self, u: f64) -> u64 {
         match self {
             Self::Fixed(d) => d,
@@ -125,18 +129,27 @@ impl FaultModel {
     #[allow(clippy::cast_precision_loss)]
     pub fn fate(&self, src: VAddr, dst: VAddr, seq: u64, len: usize) -> Fate {
         if self.partition.blocked(src.node_of(), dst.node_of()) {
-            return Fate { dropped: true, delay_ns: 0 };
+            return Fate {
+                dropped: true,
+                delay_ns: 0,
+            };
         }
         let mut state = channel_stream(self.seed, src, dst, seq);
         if unit(&mut state) < self.loss {
-            return Fate { dropped: true, delay_ns: 0 };
+            return Fate {
+                dropped: true,
+                delay_ns: 0,
+            };
         }
         let mut delay = self.latency.sample(unit(&mut state));
         if self.bandwidth_bps > 0 {
             let serialize = (len as u64).saturating_mul(1_000_000_000) / self.bandwidth_bps;
             delay = delay.saturating_add(serialize);
         }
-        Fate { dropped: false, delay_ns: delay }
+        Fate {
+            dropped: false,
+            delay_ns: delay,
+        }
     }
 }
 

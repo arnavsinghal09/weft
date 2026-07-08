@@ -7,9 +7,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use weft_net::config;
-use weft_net::wire::{
-    read_from_broker, write_to_broker, FromBroker, ToBroker, VAddr,
-};
+use weft_net::wire::{read_from_broker, write_to_broker, FromBroker, ToBroker, VAddr};
 use weft_net::Broker;
 
 struct Client(UnixStream);
@@ -37,7 +35,10 @@ impl Client {
     }
     /// Non-blocking receive; `None` when the queue is empty.
     fn try_recv(&mut self, addr: VAddr) -> Option<Vec<u8>> {
-        match self.call(&ToBroker::Recv { addr, blocking: false }) {
+        match self.call(&ToBroker::Recv {
+            addr,
+            blocking: false,
+        }) {
             FromBroker::Deliver { payload, .. } => Some(payload),
             FromBroker::Empty => None,
             FromBroker::Ack => panic!("unexpected Ack"),
@@ -48,10 +49,8 @@ impl Client {
 fn start_broker(seed: u64, spec: &str) -> (PathBuf, Arc<Broker>) {
     static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let path = std::env::temp_dir().join(format!(
-        "weft-test-broker-{}-{n}.sock",
-        std::process::id(),
-    ));
+    let path =
+        std::env::temp_dir().join(format!("weft-test-broker-{}-{n}.sock", std::process::id(),));
     let _ = std::fs::remove_file(&path);
     let model = config::parse(seed, spec).unwrap();
     let broker = Arc::new(Broker::bind(&path, model).unwrap());
@@ -107,9 +106,16 @@ fn loss_is_deterministic_and_roughly_matches_probability() {
     let again = survivors(9);
     assert_eq!(first, again, "same seed must lose the same datagrams");
     // ~50% with generous slack.
-    assert!((100..300).contains(&first.len()), "survived {}", first.len());
+    assert!(
+        (100..300).contains(&first.len()),
+        "survived {}",
+        first.len()
+    );
     let other = survivors(10);
-    assert_ne!(first, other, "different seed should lose different datagrams");
+    assert_ne!(
+        first, other,
+        "different seed should lose different datagrams"
+    );
 }
 
 #[test]
@@ -130,7 +136,10 @@ fn latency_variance_reorders_deterministically() {
     assert_eq!(first, ordering(3));
     assert_eq!(first.len(), 20, "no loss configured; nothing may vanish");
     let in_order: Vec<Vec<u8>> = (0u32..20).map(|i| i.to_le_bytes().to_vec()).collect();
-    assert_ne!(first, in_order, "uniform latency over a burst should reorder");
+    assert_ne!(
+        first, in_order,
+        "uniform latency over a burst should reorder"
+    );
 }
 
 #[test]
@@ -194,7 +203,10 @@ fn blocking_recv_wakes_on_send() {
 
     let handle = std::thread::spawn(move || {
         // Blocking request parks in the broker until the send below.
-        match rx.call(&ToBroker::Recv { addr: ra, blocking: true }) {
+        match rx.call(&ToBroker::Recv {
+            addr: ra,
+            blocking: true,
+        }) {
             FromBroker::Deliver { payload, .. } => payload,
             other => panic!("expected delivery, got {other:?}"),
         }

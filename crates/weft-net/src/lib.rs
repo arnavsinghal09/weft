@@ -9,6 +9,7 @@
 
 pub mod broker;
 pub mod config;
+pub mod core;
 pub mod fault;
 pub mod wire;
 

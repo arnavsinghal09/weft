@@ -62,13 +62,17 @@ fn parse_latency(v: &str) -> Result<Latency, String> {
             }
             Ok(Latency::Uniform { lo, hi })
         }
-        "exp" | "exponential" => Ok(Latency::Exponential { mean: parse_ns(arg)? }),
+        "exp" | "exponential" => Ok(Latency::Exponential {
+            mean: parse_ns(arg)?,
+        }),
         other => Err(format!("unknown latency kind {other:?}")),
     }
 }
 
 fn parse_ns(s: &str) -> Result<u64, String> {
-    s.trim().parse().map_err(|_| format!("{s:?} is not an integer (nanoseconds)"))
+    s.trim()
+        .parse()
+        .map_err(|_| format!("{s:?} is not an integer (nanoseconds)"))
 }
 
 fn parse_partition(v: &str) -> Result<Partition, String> {
@@ -95,7 +99,11 @@ mod tests {
 
     #[test]
     fn parses_full_spec() {
-        let m = parse(9, "latency=uniform:1000-5000,loss=0.1,bw=2000000,partition=0+1|2").unwrap();
+        let m = parse(
+            9,
+            "latency=uniform:1000-5000,loss=0.1,bw=2000000,partition=0+1|2",
+        )
+        .unwrap();
         assert_eq!(m.latency, Latency::Uniform { lo: 1000, hi: 5000 });
         assert!((m.loss - 0.1).abs() < 1e-9);
         assert_eq!(m.bandwidth_bps, 2_000_000);
