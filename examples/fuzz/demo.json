@@ -1,0 +1,9 @@
+{
+  "//": "Demo sweep: latency variance + loss (the kvreplica-style multi-fault combination). FIFO violations are EXPECTED here — this config exists to watch the find → shrink → reproduce loop do its job. Try: weft fuzz --config examples/fuzz/demo.json --seeds 0:100",
+  "net": "latency=uniform:0-8000,loss=0.02",
+  "seed_start": 0,
+  "seed_count": 100,
+  "invariants": ["fifo", "dup"],
+  "workload": { "nodes": 3, "sends": 30, "payload_len": 4 },
+  "out_dir": "weft-fuzz-out"
+}

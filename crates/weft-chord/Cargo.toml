@@ -1,0 +1,27 @@
+# Chord invariant checker for the Phase 7 case study. Reads weft-log
+# recordings of real Chord processes and evaluates Zave's correctness
+# invariants; also exposes a streaming invariant so the Phase 6 shrinker
+# works on Chord recordings.
+[package]
+name = "weft-chord"
+description = "Chord ring-maintenance invariant checker over Weft recordings (Phase 7 case study)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+weft-replay = { workspace = true }
+
+[[bin]]
+name = "chord-check"
+path = "src/bin/chord_check.rs"
+
+[[bin]]
+name = "chord-trace"
+path = "src/bin/chord_trace.rs"
+
+[lints]
+workspace = true

@@ -1,0 +1,10 @@
+{
+  "//": "CI property sweep: under fixed latency and zero loss, per-channel FIFO and no-duplicate-delivery MUST hold for every seed. Any violation here is a real regression in the broker's decision core — the sweep is expected to pass (exit 0).",
+  "net": "latency=fixed:100",
+  "seed_start": 0,
+  "seed_count": 500,
+  "time_budget_secs": 120,
+  "invariants": ["fifo", "dup"],
+  "workload": { "nodes": 3, "sends": 40, "payload_len": 4 },
+  "out_dir": "weft-fuzz-out"
+}
