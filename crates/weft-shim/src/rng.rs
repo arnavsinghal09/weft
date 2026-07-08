@@ -22,8 +22,8 @@
 use core::mem::MaybeUninit;
 use std::sync::Mutex;
 
-use rand_core::{RngCore, SeedableRng};
 use rand_chacha::ChaCha8Rng;
+use rand_core::{RngCore, SeedableRng};
 use weft_abi::{expand_seed, splitmix64, Domain};
 
 fn stream_for(key: [u8; 32], domain: Domain) -> ChaCha8Rng {

@@ -34,10 +34,13 @@ trees are covered (each `exec` restarts virtual time — see limitations).
 
 | crate | role | loaded into target? |
 |---|---|---|
-| `weft-dst` | `weft` CLI: env plumbing, exec, broker hosting (`--net`) | no |
+| `weft-dst` | `weft` CLI: env plumbing, exec, broker hosting (`--net`), `replay` | no |
 | `weft-shim` | cdylib with the hooks + engine + scheduler | yes |
 | `weft-abi` | env-var names, seed parsing, domain IDs, SplitMix64 | yes (via shim) |
-| `weft-net` | broker, fault model, wire protocol (Phase 3) | yes (via shim) |
+| `weft-net` | broker + pure decision core, fault model, wire protocol (Phase 3) | yes (via shim) |
+| `weft-scenario` | scenario DSL: JSON parsing + validation (Phase 4) | no |
+| `weft-replay` | event-log recording, deterministic replay, invariants (Phase 5) | no |
+| `weft-fuzz` | seed sweeping, delta-debugging shrinker, `weft fuzz` engine (Phase 6) | no |
 
 `weft-shim` and `weft-abi` keep a near-zero dependency tree (`libc`,
 `rand_chacha`, `rand_core`; all `no_std`-capable) because they execute inside

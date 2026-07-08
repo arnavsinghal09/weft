@@ -1,0 +1,53 @@
+name: Fuzz
+
+# Nightly seed sweep plus on-demand runs. `weft fuzz` is pure computation
+# (no shim, no sockets), so it runs on any platform and any failure it finds
+# is byte-for-byte reproducible locally with the printed `weft replay` line.
+on:
+  schedule:
+    - cron: "17 3 * * *" # nightly, off the whole-hour rush
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "crates/weft-net/**"
+      - "crates/weft-replay/**"
+      - "crates/weft-fuzz/**"
+      - "examples/fuzz/**"
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: Seed sweep + shrink
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build weft
+        run: cargo build --release -p weft-dst
+
+      # Regression seeds first (the tool queues them ahead of the sweep), then
+      # the sweep. Exit code 2 = violations found → the job fails and the
+      # shrunk reproducers + report are uploaded as an artifact.
+      - name: Fuzz
+        run: |
+          ./target/release/weft fuzz \
+            --config examples/fuzz/ci.json \
+            --regressions examples/fuzz/regression-seeds.json \
+            --out weft-fuzz-out
+
+      - name: Upload reproducers on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: weft-fuzz-reproducers
+          path: |
+            weft-fuzz-out/
+            examples/fuzz/regression-seeds.json
+          retention-days: 30

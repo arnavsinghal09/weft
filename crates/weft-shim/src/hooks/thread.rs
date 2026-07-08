@@ -241,7 +241,9 @@ pub unsafe extern "C" fn pthread_cond_wait(
     }
     // SAFETY: forwarding the caller's arguments unchanged.
     unsafe {
-        real!(pthread_cond_wait: fn(*mut pthread_cond_t, *mut pthread_mutex_t) -> c_int)(cond, mutex)
+        real!(pthread_cond_wait: fn(*mut pthread_cond_t, *mut pthread_mutex_t) -> c_int)(
+            cond, mutex,
+        )
     }
 }
 

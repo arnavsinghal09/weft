@@ -106,7 +106,11 @@ pub unsafe extern "C" fn rand_r(seedp: *mut c_uint) -> c_int {
 ///
 /// Arguments per the libc contract; `statebuf` is returned, never written.
 #[no_mangle]
-pub unsafe extern "C" fn initstate(seed: c_uint, statebuf: *mut c_char, size: size_t) -> *mut c_char {
+pub unsafe extern "C" fn initstate(
+    seed: c_uint,
+    statebuf: *mut c_char,
+    size: size_t,
+) -> *mut c_char {
     let Some(s) = shim() else {
         // SAFETY: forwarding the caller's arguments unchanged.
         return unsafe {
@@ -203,8 +207,7 @@ pub unsafe extern "C" fn srand48(seedval: c_long) {
 fn step_xsubi(xsubi: *mut c_ushort, run_seed: u64) -> u64 {
     // SAFETY: xsubi points to an unsigned short[3] per the libc contract.
     let parts = unsafe { core::slice::from_raw_parts_mut(xsubi, 3) };
-    let state =
-        u64::from(parts[0]) | (u64::from(parts[1]) << 16) | (u64::from(parts[2]) << 32);
+    let state = u64::from(parts[0]) | (u64::from(parts[1]) << 16) | (u64::from(parts[2]) << 32);
     let mut mix = state ^ run_seed.rotate_left(23);
     let out = splitmix64(&mut mix);
     #[allow(clippy::cast_possible_truncation)] // deliberate 16-bit slicing
@@ -314,7 +317,13 @@ pub unsafe extern "C" fn getentropy(buf: *mut c_void, length: size_t) -> c_int {
     };
     if length > 256 || buf.is_null() {
         // SAFETY: setting errno through libc's thread-local errno location.
-        unsafe { *libc::__errno_location() = if buf.is_null() { libc::EFAULT } else { libc::EIO } };
+        unsafe {
+            *libc::__errno_location() = if buf.is_null() {
+                libc::EFAULT
+            } else {
+                libc::EIO
+            }
+        };
         return -1;
     }
     // SAFETY: buf is non-null and valid for `length` writes per the contract.

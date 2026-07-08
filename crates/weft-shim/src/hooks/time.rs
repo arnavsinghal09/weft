@@ -87,7 +87,12 @@ pub unsafe extern "C" fn gettimeofday(tv: *mut timeval, tz: *mut c_void) -> c_in
         // valid for writes per the libc contract.
         unsafe { core::ptr::write_bytes(tz.cast::<u8>(), 0, 8) };
     }
-    shim_trace!(s, "gettimeofday() -> {}.{:06}", ns / NANOS_PER_SEC, (ns % NANOS_PER_SEC) / 1_000);
+    shim_trace!(
+        s,
+        "gettimeofday() -> {}.{:06}",
+        ns / NANOS_PER_SEC,
+        (ns % NANOS_PER_SEC) / 1_000
+    );
     0
 }
 
@@ -111,7 +116,12 @@ pub unsafe extern "C" fn clock_gettime(clk: clockid_t, tp: *mut timespec) -> c_i
         _ => s.clock.now_mono_ns(),
     };
     write_timespec(ns, tp);
-    shim_trace!(s, "clock_gettime({clk}) -> {}.{:09}", ns / NANOS_PER_SEC, ns % NANOS_PER_SEC);
+    shim_trace!(
+        s,
+        "clock_gettime({clk}) -> {}.{:09}",
+        ns / NANOS_PER_SEC,
+        ns % NANOS_PER_SEC
+    );
     0
 }
 
@@ -168,7 +178,12 @@ pub unsafe extern "C" fn nanosleep(req: *const timespec, rem: *mut timespec) -> 
     };
     s.clock.advance_ns(ns);
     write_timespec(0, rem); // never interrupted: zero remaining time
-    shim_trace!(s, "nanosleep({}.{:09}) -> instant", ns / NANOS_PER_SEC, ns % NANOS_PER_SEC);
+    shim_trace!(
+        s,
+        "nanosleep({}.{:09}) -> instant",
+        ns / NANOS_PER_SEC,
+        ns % NANOS_PER_SEC
+    );
     0
 }
 

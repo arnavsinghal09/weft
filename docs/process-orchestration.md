@@ -9,7 +9,8 @@ Process orchestration extends the fault model to include scheduled process lifec
 ### Current State (Foundation)
 
 - **Scenario DSL** (`weft-scenario` crate): describes crashes and restarts as scheduled events
-- **Broker** (`weft-net`): network-only state machine; does not manage processes
+- **Broker** (`weft-net`): network-only state machine; does not manage processes. It does export `global_logical_time` (an `AtomicU64` high-water mark updated on each send) for the event scheduler.
+- **Orchestrator** (`weft-dst::orchestrator`): `NodeRegistry` (node status + PIDs) and `spawn_scheduler` (polls `global_logical_time`, executes `crash` via SIGKILL). `start` only marks the node `Restarting` — respawn (fork/exec) and partition activation are not implemented yet.
 - **Shim** (`weft-shim`): per-process interception; does not track process lifecycle
 
 ### Required Additions for MVP

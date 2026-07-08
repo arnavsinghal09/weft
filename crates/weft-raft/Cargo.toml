@@ -1,0 +1,22 @@
+# Raft ElectionSafety checker for the Phase 7 second validation target.
+# Reads weft-log recordings of real raft_node processes and scans every
+# state report for two distinct leaders claiming the same term.
+[package]
+name = "weft-raft"
+description = "Raft ElectionSafety checker over Weft recordings (Phase 7 second target)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+weft-replay = { workspace = true }
+
+[[bin]]
+name = "raft-check"
+path = "src/bin/raft_check.rs"
+
+[lints]
+workspace = true

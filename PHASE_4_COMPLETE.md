@@ -330,14 +330,16 @@ All state is deterministic or seeded; all nondeterminism is injected at boundari
 ## Test Results
 
 ```
-weft-abi unit tests:           0/0 (no phase 4 tests)
+weft-abi unit tests:           3/3 (no phase 4 tests)
 weft-shim unit tests:          13/13 ✅
 weft-net unit tests:           11/11 (unchanged)
+weft-net integration:          6/6 (unchanged)
 weft-scenario unit tests:      8/8 ✅
 weft-scenario integration:     22/22 ✅
+weft-dst unit tests:           5/5 (unchanged)
 weft-dst orchestration:        3/3 ✅
 ────────────────────────────────────────
-Total:                         46/46 ✅
+Total:                         71/71 ✅
 
 Build:                         No warnings or errors
 Code coverage:                 All new code has tests

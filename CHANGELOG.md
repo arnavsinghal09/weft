@@ -11,6 +11,52 @@ minor versions may contain breaking changes.
 
 ### Added
 
+- Seed fuzzing and failure shrinking (Phase 6): `weft fuzz --config <FILE>`
+  sweeps fault seeds against a deterministic workload (new `weft-fuzz`
+  crate), checks invariants on every execution, dedupes violations by
+  identity (invariant + channel), and shrinks each distinct one to a minimal
+  reproducer log that `weft replay --check` verifies byte-for-byte.
+  Shrinking is delta debugging over *op inputs* (recorded outcomes are
+  derived data and are recomputed, never edited): truncate-after-violation,
+  ddmin with parallel candidate evaluation (deterministic lowest-index
+  adoption), a 1-minimal single-op sweep, payload truncation, and connect
+  GC — never reordering ops or touching seed/net, so reproducers stay
+  interpretable subsequences of the original run. Correctness is pinned by
+  three ground-truth tests that bury a known exact minimum (6, 4, and 5 ops)
+  in 300–400 noise ops and require exact recovery. The sweep itself is
+  two-phase (sweep, then shrink from each violation's smallest seed) so
+  reports are deterministic regardless of thread timing; a JSON config file
+  (typo-rejecting, with defaults) replaces flag soup, exit codes are
+  CI-first (0 clean / 2 violations / 1 error), `--regressions <file>`
+  maintains a self-growing corpus of failing seeds that are always tested
+  before the sweep, and `.github/workflows/fuzz.yml` +
+  `examples/fuzz/ci.json` ship a working CI property sweep (fixed-latency
+  net where FIFO must hold for every seed). See docs/fuzzing.md.
+- Recording, deterministic replay, and invariant checking (Phase 5). New
+  `weft-replay` crate implements the versioned `weft-log` v1 format
+  (docs/recording-format.md): a JSONL capture of the broker's linearization
+  order — the single run input that is not a pure function of the seed —
+  with an FNV-1a integrity chain that detects truncation, reordering, and
+  edits. `weft run --net … --record <LOG>` records a run;
+  `weft replay <LOG> [--until N] [--check fifo,dup]` re-executes it by
+  driving the same pure decision core the live broker uses
+  (`weft_net::core::Core`, extracted from the broker so live and replayed
+  behavior cannot drift) and verifies the result is byte-identical —
+  recomputing every fate, tie, and virtual time rather than trusting the
+  log, and reporting the first divergence with both sides. Invariants
+  (`per-channel-fifo`, `no-duplicate-delivery`, or ad-hoc closures) run
+  identically in-process during recording and from an external checker over
+  the log; every violation is anchored to `(op, virtual-time)` on the
+  logical timeline, and the violation report carries seed, net spec, log
+  path, stream digest, the surrounding event window, and the literal replay
+  command. Validated end to end: a live broker run (real sockets, threads,
+  OS scheduling) whose latency variance breaks FIFO is recorded and
+  replayed to the identical violation — same op, same virtual time, same
+  stream digest — 10 consecutive times (`weft-replay/tests/record_replay.rs`;
+  runnable demo: `cargo run -p weft-replay --example demo_violation`).
+  Logs may be gzip-compressed as a transport encoding (`--record foo.weftlog.gz`;
+  readers detect gzip by magic bytes, and the integrity chain is always over
+  the uncompressed text — recording-format.md §11; ~4× smaller in practice).
 - Process orchestration (Phase 4c): deterministic execution of scheduled
   crash/restart/partition events. New `weft_dst::orchestrator` module with
   `NodeRegistry` to track process state and `spawn_scheduler()` to execute

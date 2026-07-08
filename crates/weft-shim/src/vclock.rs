@@ -41,8 +41,7 @@ impl VClock {
     pub fn new(seed_offset_secs: u64) -> Self {
         Self {
             mono_ns: AtomicU64::new(0),
-            real_base_ns: EPOCH_BASE_NS
-                + (seed_offset_secs % MAX_SEED_OFFSET_SECS) * NANOS_PER_SEC,
+            real_base_ns: EPOCH_BASE_NS + (seed_offset_secs % MAX_SEED_OFFSET_SECS) * NANOS_PER_SEC,
         }
     }
 

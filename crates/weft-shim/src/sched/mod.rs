@@ -67,7 +67,11 @@ impl Hasher for FnvHasher {
         self.0
     }
     fn write(&mut self, bytes: &[u8]) {
-        let mut h = if self.0 == 0 { 0xcbf2_9ce4_8422_2325 } else { self.0 };
+        let mut h = if self.0 == 0 {
+            0xcbf2_9ce4_8422_2325
+        } else {
+            self.0
+        };
         for &b in bytes {
             h = (h ^ u64::from(b)).wrapping_mul(0x0000_0100_0000_01b3);
         }
@@ -191,7 +195,11 @@ impl Scheduler {
     /// `pthread_create` failed): mark it finished so it can't block a join.
     pub fn abandon_child(&self, tid: Tid) {
         let _g = Reentrancy::enter();
-        self.state.lock().unwrap().status.insert(tid, Status::Finished);
+        self.state
+            .lock()
+            .unwrap()
+            .status
+            .insert(tid, Status::Finished);
     }
 
     /// Record the OS handle (`pthread_t`) for a reserved child tid so
@@ -391,7 +399,11 @@ impl Scheduler {
 
         if runnable.is_empty() {
             if st.status.values().any(|s| *s != Status::Finished) {
-                let blocked = st.status.values().filter(|s| **s != Status::Finished).count();
+                let blocked = st
+                    .status
+                    .values()
+                    .filter(|s| **s != Status::Finished)
+                    .count();
                 crate::trace::raw_stderr(&format!(
                     "[weft] DEADLOCK: {blocked} thread(s) blocked, none can make progress \
                      (at {site})\n"
@@ -417,7 +429,8 @@ impl Scheduler {
     #[allow(clippy::unused_self)]
     fn select(&self, strategy: Strategy, runnable: &[Tid], st: &mut State) -> Tid {
         #[allow(clippy::cast_possible_truncation)] // index into a slice
-        let random = |rng: &mut ChaCha8Rng| runnable[(rng.next_u64() % runnable.len() as u64) as usize];
+        let random =
+            |rng: &mut ChaCha8Rng| runnable[(rng.next_u64() % runnable.len() as u64) as usize];
         match strategy {
             Strategy::Random => random(&mut st.rng),
             Strategy::RoundRobin => {

@@ -25,13 +25,7 @@ fn write_fd2(bytes: &[u8]) {
         while off < bytes.len() {
             // SAFETY: fd 2 write with an in-bounds pointer/length pair; we
             // handle short writes and ignore errors (tracing is best-effort).
-            let n = unsafe {
-                libc::write(
-                    2,
-                    bytes.as_ptr().add(off).cast(),
-                    bytes.len() - off,
-                )
-            };
+            let n = unsafe { libc::write(2, bytes.as_ptr().add(off).cast(), bytes.len() - off) };
             if n <= 0 {
                 return;
             }
@@ -83,7 +77,10 @@ mod tests {
 
     #[test]
     fn stack_buf_truncates_instead_of_overflowing() {
-        let mut b = StackBuf::<8> { buf: [0; 8], len: 0 };
+        let mut b = StackBuf::<8> {
+            buf: [0; 8],
+            len: 0,
+        };
         b.write_str("0123456789").unwrap();
         assert_eq!(&b.buf[..b.len], b"01234567");
         b.write_str("more").unwrap(); // full buffer: still no panic

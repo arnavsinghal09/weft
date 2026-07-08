@@ -61,7 +61,9 @@ const APP_COND: usize = 0x00C0_FFEE;
 
 /// A worker that repeatedly enters a modeled critical section and records its
 /// tid, producing an interleaving order log.
-fn logging_body(iters: usize) -> impl Fn(&Scheduler, Tid, &Mutex<Vec<Tid>>) + Send + Sync + 'static {
+fn logging_body(
+    iters: usize,
+) -> impl Fn(&Scheduler, Tid, &Mutex<Vec<Tid>>) + Send + Sync + 'static {
     move |sched, tid, log| {
         for _ in 0..iters {
             sched.mutex_lock(APP_MUTEX);
@@ -72,7 +74,13 @@ fn logging_body(iters: usize) -> impl Fn(&Scheduler, Tid, &Mutex<Vec<Tid>>) + Se
 }
 
 fn order_log(seed: u64, strategy: Strategy, workers: usize, iters: usize) -> Vec<Tid> {
-    let log = scenario(seed, strategy, workers, Mutex::new(Vec::new()), logging_body(iters));
+    let log = scenario(
+        seed,
+        strategy,
+        workers,
+        Mutex::new(Vec::new()),
+        logging_body(iters),
+    );
     log.into_inner().unwrap()
 }
 
@@ -88,7 +96,9 @@ fn same_seed_reproduces_the_interleaving() {
 
 #[test]
 fn different_seeds_diverge() {
-    let logs: Vec<Vec<Tid>> = (0..8).map(|s| order_log(s, Strategy::Random, 4, 10)).collect();
+    let logs: Vec<Vec<Tid>> = (0..8)
+        .map(|s| order_log(s, Strategy::Random, 4, 10))
+        .collect();
     let distinct = logs.iter().collect::<std::collections::HashSet<_>>().len();
     assert!(distinct > 1, "seed had no effect on the interleaving");
 }
@@ -107,21 +117,18 @@ fn threads_that_exit_at_different_times_all_join() {
     // Worker i runs i+1 critical sections, so they finish at very different
     // points; the harness's joins must all complete.
     let counts = Arc::new((0..8).map(|_| AtomicBool::new(false)).collect::<Vec<_>>());
-    let seen = scenario(
-        11,
-        Strategy::Random,
-        8,
-        counts,
-        |sched, tid, done| {
-            let idx = usize::try_from(tid).unwrap();
-            for _ in 0..=idx {
-                sched.mutex_lock(APP_MUTEX);
-                sched.mutex_unlock(APP_MUTEX);
-            }
-            done[idx].store(true, Ordering::Relaxed);
-        },
+    let seen = scenario(11, Strategy::Random, 8, counts, |sched, tid, done| {
+        let idx = usize::try_from(tid).unwrap();
+        for _ in 0..=idx {
+            sched.mutex_lock(APP_MUTEX);
+            sched.mutex_unlock(APP_MUTEX);
+        }
+        done[idx].store(true, Ordering::Relaxed);
+    });
+    assert!(
+        seen.iter().all(|b| b.load(Ordering::Relaxed)),
+        "a thread never ran"
     );
-    assert!(seen.iter().all(|b| b.load(Ordering::Relaxed)), "a thread never ran");
 }
 
 #[test]
@@ -180,5 +187,9 @@ fn condvar_rendezvous() {
     });
     let mut order = result.log.into_inner().unwrap();
     order.sort_unstable();
-    assert_eq!(order, vec![1, 2, 3, 4, 5], "not every worker woke and recorded");
+    assert_eq!(
+        order,
+        vec![1, 2, 3, 4, 5],
+        "not every worker woke and recorded"
+    );
 }

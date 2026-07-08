@@ -135,7 +135,12 @@ pub unsafe extern "C" fn open64(path: *const c_char, flags: c_int, mode: mode_t)
 ///
 /// Arguments per the libc `openat(2)` contract.
 #[no_mangle]
-pub unsafe extern "C" fn openat(dirfd: c_int, path: *const c_char, flags: c_int, mode: mode_t) -> c_int {
+pub unsafe extern "C" fn openat(
+    dirfd: c_int,
+    path: *const c_char,
+    flags: c_int,
+    mode: mode_t,
+) -> c_int {
     if let Some(s) = shim() {
         if is_random_device(path) {
             let fd = open_placeholder_fd(s);
@@ -156,7 +161,12 @@ pub unsafe extern "C" fn openat(dirfd: c_int, path: *const c_char, flags: c_int,
 ///
 /// Arguments per the libc `openat64` contract.
 #[no_mangle]
-pub unsafe extern "C" fn openat64(dirfd: c_int, path: *const c_char, flags: c_int, mode: mode_t) -> c_int {
+pub unsafe extern "C" fn openat64(
+    dirfd: c_int,
+    path: *const c_char,
+    flags: c_int,
+    mode: mode_t,
+) -> c_int {
     if let Some(s) = shim() {
         if is_random_device(path) {
             let fd = open_placeholder_fd(s);
@@ -206,14 +216,21 @@ pub unsafe extern "C" fn read(fd: c_int, buf: *mut c_void, count: size_t) -> ssi
 ///
 /// Arguments per the libc `pread(2)` contract.
 #[no_mangle]
-pub unsafe extern "C" fn pread(fd: c_int, buf: *mut c_void, count: size_t, offset: off_t) -> ssize_t {
+pub unsafe extern "C" fn pread(
+    fd: c_int,
+    buf: *mut c_void,
+    count: size_t,
+    offset: off_t,
+) -> ssize_t {
     if let Some(s) = shim() {
         if is_tracked(fd) && !buf.is_null() {
             return fill_deterministic(s, buf, count);
         }
     }
     // SAFETY: forwarding the caller's arguments unchanged.
-    unsafe { real!(pread: fn(c_int, *mut c_void, size_t, off_t) -> ssize_t)(fd, buf, count, offset) }
+    unsafe {
+        real!(pread: fn(c_int, *mut c_void, size_t, off_t) -> ssize_t)(fd, buf, count, offset)
+    }
 }
 
 /// glibc LFS alias of [`pread`].
@@ -222,14 +239,21 @@ pub unsafe extern "C" fn pread(fd: c_int, buf: *mut c_void, count: size_t, offse
 ///
 /// Arguments per the libc `pread64` contract.
 #[no_mangle]
-pub unsafe extern "C" fn pread64(fd: c_int, buf: *mut c_void, count: size_t, offset: off_t) -> ssize_t {
+pub unsafe extern "C" fn pread64(
+    fd: c_int,
+    buf: *mut c_void,
+    count: size_t,
+    offset: off_t,
+) -> ssize_t {
     if let Some(s) = shim() {
         if is_tracked(fd) && !buf.is_null() {
             return fill_deterministic(s, buf, count);
         }
     }
     // SAFETY: forwarding the caller's arguments unchanged.
-    unsafe { real!(pread64: fn(c_int, *mut c_void, size_t, off_t) -> ssize_t)(fd, buf, count, offset) }
+    unsafe {
+        real!(pread64: fn(c_int, *mut c_void, size_t, off_t) -> ssize_t)(fd, buf, count, offset)
+    }
 }
 
 /// `close(2)`: untracks diverted fds, then closes the placeholder.
@@ -329,7 +353,10 @@ fn cookie_stream(s: &Shim, mode: *const c_char) -> *mut FILE {
         seek: None,
         close: Some(cookie_close),
     };
-    shim_trace!(s, "fopen(/dev/*random) -> deterministic cookie stream #{index}");
+    shim_trace!(
+        s,
+        "fopen(/dev/*random) -> deterministic cookie stream #{index}"
+    );
     // SAFETY: `cookie` is a live `DevFileRng` leaked just above; the function
     // table is static; the mode string is the caller's, valid per the fopen
     // contract. On success glibc owns the cookie and returns it via

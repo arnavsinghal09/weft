@@ -55,7 +55,8 @@ fn ensure_seeded() {
 fn now_mono_ns() -> u64 {
     let mut ts = MaybeUninit::<libc::timespec>::uninit();
     // SAFETY: valid out-pointer; this resolves to the shim's clock_gettime.
-    let rc = unsafe { weft_shim::hooks::time::clock_gettime(libc::CLOCK_MONOTONIC, ts.as_mut_ptr()) };
+    let rc =
+        unsafe { weft_shim::hooks::time::clock_gettime(libc::CLOCK_MONOTONIC, ts.as_mut_ptr()) };
     assert_eq!(rc, 0);
     // SAFETY: hook returned 0, so the timespec was written.
     let ts = unsafe { ts.assume_init() };
@@ -90,11 +91,7 @@ fn hooks_survive_concurrent_hammering() {
                         buf.fill(0);
                         // SAFETY: valid buffer pointer/length pair.
                         let n = unsafe {
-                            weft_shim::hooks::rand::getrandom(
-                                buf.as_mut_ptr().cast(),
-                                buf.len(),
-                                0,
-                            )
+                            weft_shim::hooks::rand::getrandom(buf.as_mut_ptr().cast(), buf.len(), 0)
                         };
                         assert_eq!(n, 64);
                         assert_ne!(buf, [0u8; 64], "getrandom produced all zeros");
@@ -102,7 +99,10 @@ fn hooks_survive_concurrent_hammering() {
 
                     // Virtual sleep: cheap and must be race-free.
                     if i % 64 == 0 {
-                        let req = libc::timespec { tv_sec: 0, tv_nsec: 100 };
+                        let req = libc::timespec {
+                            tv_sec: 0,
+                            tv_nsec: 100,
+                        };
                         // SAFETY: valid req pointer, null rem is allowed.
                         let rc = unsafe {
                             weft_shim::hooks::time::nanosleep(&req, std::ptr::null_mut())
