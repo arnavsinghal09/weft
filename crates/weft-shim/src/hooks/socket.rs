@@ -202,7 +202,7 @@ fn ensure_local(s: &Shim, sock: &mut Sock, node: u32) -> Option<VAddr> {
     }
     let addr = VAddr::new(node_ip(node), EPHEMERAL.fetch_add(1, Ordering::Relaxed));
     match broker_call(sock, &ToBroker::Bind { addr })? {
-        FromBroker::Ack => {
+        FromBroker::Ack { .. } => {
             shim_trace!(s, "socket auto-bound {addr}");
             sock.local = Some(addr);
             Some(addr)
@@ -244,7 +244,7 @@ pub unsafe extern "C" fn socket(domain: c_int, ty: c_int, protocol: c_int) -> c_
                     let mut io = RawSock(fd);
                     let hello = ToBroker::Hello { node_id: node };
                     let ok = write_to_broker(&mut io, &hello).is_ok()
-                        && matches!(read_from_broker(&mut io), Ok(FromBroker::Ack));
+                        && matches!(read_from_broker(&mut io), Ok(FromBroker::Ack { .. }));
                     if ok {
                         table()
                             .lock()
@@ -279,7 +279,9 @@ pub unsafe extern "C" fn bind(fd: c_int, addr: *const sockaddr, len: socklen_t) 
                 return -1;
             };
             let mut sock = sock.lock().unwrap();
-            if let Some(FromBroker::Ack) = broker_call(&mut sock, &ToBroker::Bind { addr: vaddr }) {
+            if let Some(FromBroker::Ack { .. }) =
+                broker_call(&mut sock, &ToBroker::Bind { addr: vaddr })
+            {
                 sock.local = Some(vaddr);
                 shim_trace!(s, "bind(fd {fd}) -> {vaddr}");
                 return 0;
@@ -328,13 +330,20 @@ pub unsafe extern "C" fn sendto(
                 src,
                 dst,
                 payload: payload.to_vec(),
+                local_vt: s.clock.now_mono_ns(),
             };
-            let ok = matches!(broker_call(&mut guard, &req), Some(FromBroker::Ack));
+            let reply = broker_call(&mut guard, &req);
             drop(guard);
-            if !ok {
+            // The Ack's `vt` is deliberately NOT merged into the guest clock:
+            // broker logical time is a function of cross-process arrival
+            // order (OS-scheduled, re-rolled per live run), so folding it in
+            // would leak that nondeterminism into guest-visible time and
+            // break the same-seed guarantee. A future multi-host shim
+            // transport revisits this (docs/MULTI_HOST_ARCHITECTURE.md).
+            let Some(FromBroker::Ack { .. }) = reply else {
                 set_errno(libc::EIO);
                 return -1;
-            }
+            };
             shim_trace!(s, "sendto({src} -> {dst}, {len}B)");
             // A send is a yield point: give the scheduler a chance to run the
             // receiver (or anyone else) next, deterministically.
@@ -387,11 +396,18 @@ pub unsafe extern "C" fn recvfrom(
                 // Managed threads must not park inside the broker (the token
                 // would be lost to real-time races); they poll instead.
                 let blocking = !nonblock && !managed;
-                let req = ToBroker::Recv { addr, blocking };
+                let req = ToBroker::Recv {
+                    addr,
+                    blocking,
+                    local_vt: s.clock.now_mono_ns(),
+                };
                 let reply = {
                     let mut guard = sock.lock().unwrap();
                     broker_call(&mut guard, &req)
                 };
+                // Reply `vt` is intentionally ignored here, as in sendto:
+                // merging broker logical time (linearization-order-dependent)
+                // into the guest clock would break same-seed determinism.
                 match reply {
                     Some(FromBroker::Deliver { src, payload, .. }) => {
                         let n = payload.len().min(len);
@@ -405,7 +421,7 @@ pub unsafe extern "C" fn recvfrom(
                         #[allow(clippy::cast_possible_wrap)] // datagram sizes are tiny
                         return n as ssize_t;
                     }
-                    Some(FromBroker::Empty) => {
+                    Some(FromBroker::Empty { .. }) => {
                         if nonblock {
                             set_errno(libc::EAGAIN);
                             return -1;
