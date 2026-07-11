@@ -22,7 +22,7 @@ inside the container.
 **On Linux** (needs Rust ≥ 1.84 and a C compiler):
 
 ```sh
-git clone https://github.com/weft-dst/weft && cd weft
+git clone https://github.com/arnavsinghal09/weft && cd weft
 cargo build --release --workspace
 cc -O2 -o /tmp/chrono examples/chrono.c
 ./target/release/weft run --seed 42 -- /tmp/chrono
@@ -33,7 +33,7 @@ cc -O2 -o /tmp/chrono examples/chrono.c
 **On macOS / anywhere with Docker** (one container, everything inside):
 
 ```sh
-git clone https://github.com/weft-dst/weft && cd weft
+git clone https://github.com/arnavsinghal09/weft && cd weft
 docker run --rm -it -v "$PWD":/work -w /work \
   -e CARGO_TARGET_DIR=/work/target/linux rust:1.84-bookworm bash
 # now inside the container:
@@ -164,8 +164,11 @@ Chord's join/stabilize/notify protocol over real UDP. It knows nothing about
 Weft. `CHORD_FIX` selects the protocol variant: `0` = the 2001 paper,
 `1`/`2` = increasing liveness discipline from the literature.
 
-**2. The invariant.** *At least one ring*: from any live node, following
-successor pointers must reach a cycle containing all live nodes.
+**2. The invariant.** *AtLeastOneRing*: some cycle of best-successor
+pointers must exist among the live nodes. (Zave states three more —
+at most one ring, ordered ring, connected appendages — and the checker
+evaluates all four separately; a broken `AtLeastOneRing` is the headline
+failure mode.)
 `chord-check` scans a recording's final state and renders the verdict
 (exit 0 ok / 2 violation / 3 uninformative).
 

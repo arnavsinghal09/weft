@@ -46,7 +46,7 @@ detection-latency race), and Ongaro's dissertation edge case where an
 unpersisted vote allows a double-election on crash-restart (3/300 seeds
 reproduced it; 0/300 once the vote is persisted). Write-up, including the
 honest negative results:
-https://github.com/weft-dst/weft/blob/main/docs/case-study/CREDIBILITY_SUMMARY.md
+https://github.com/arnavsinghal09/weft/blob/main/docs/case-study/CREDIBILITY_SUMMARY.md
 
 If it's useful: Weft needs no changes to your binary. A rough integration
 path would be running your existing test/fuzz workloads under
@@ -58,7 +58,7 @@ verdict, exit non-zero on violation).
 
 Totally understand if this isn't a priority right now — happy to answer
 questions either way, and equally happy to just hear "we already have
-[X] and it covers this." Repo: https://github.com/weft-dst/weft
+[X] and it covers this." Repo: https://github.com/arnavsinghal09/weft
 
 Thanks for maintaining [PROJECT] — [one genuine, specific sentence about
 why you respect this project, not boilerplate].

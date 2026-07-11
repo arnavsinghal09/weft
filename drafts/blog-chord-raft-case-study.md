@@ -25,8 +25,8 @@ know is there. So we did.
 Chord is the canonical distributed hash table paper — join a ring,
 stabilize your successor pointer, and lookups resolve in O(log n) hops.
 It's foundational reading in every distributed systems course. It also has
-a known flaw: in 2012, Pamela Zave published "How to Not Prove Your
-Distributed Algorithm" (ACM SIGCOMM CCR), formally proving that Chord's
+a known flaw: in 2012, Pamela Zave published "Using Lightweight Modeling to
+Understand Chord" (ACM SIGCOMM CCR), formally showing that Chord's
 original stabilization protocol cannot maintain its own core invariant
 (`AtLeastOneRing`) under concurrent joins and failures. The ring can
 silently break into multiple disjoint rings, and the published protocol has
@@ -34,8 +34,11 @@ no mechanism to detect or repair it.
 
 That's a formally proven result about a paper design. We wanted to know:
 does an actual C implementation of that paper's protocol, run under
-realistic network conditions, actually exhibit the flaw — and can a dynamic
-tool find it without knowing the proof in advance?
+realistic network conditions, actually exhibit the flaw? To be clear about
+what we tested: we built the checker *from* Zave's invariants and shaped
+the scenario around her anomaly's preconditions — what the tool had to find
+on its own was the schedules that trigger it. Nobody pointed it at a
+specific interleaving.
 
 ## Building the smallest thing that could be wrong
 
@@ -52,9 +55,9 @@ selected by an environment variable:
   known-dead node.
 
 We wrote a checker, `chord-check`, that scans a recording of a run and
-verifies one invariant: from any live node, following successor pointers
-reaches a cycle containing every live node. Simple to state, and it's
-exactly `AtLeastOneRing`.
+verifies Zave's four correctness-critical invariants. The headline one,
+`AtLeastOneRing`, is simple to state: some cycle of live successor
+pointers must exist.
 
 Then we ran 500 seeds — same network conditions, same seven-node cluster,
 same failure schedule distribution, only `CHORD_FIX` changed:
@@ -134,13 +137,13 @@ dynamic testing results are conditional on the schedule you tested, always.
 
 The point of this exercise wasn't really Chord or Raft — both bugs were
 already known, proven, and published. The point was checking whether a
-general-purpose dynamic testing tool, pointed at an unmodified binary with
-no protocol-specific instrumentation beyond "print your state each tick,"
-could rediscover results that took formal methods to establish the first
-time. It could, for both. And where it couldn't get all the way to zero
+general-purpose dynamic testing tool, given an uninstrumented binary (its
+only concession is printing its state each tick) plus a checker built from
+the published invariants, could dynamically reproduce results that took
+formal methods to establish the first time. It could, for both. And where it couldn't get all the way to zero
 (Chord's 1.8% residual), it told us exactly why, down to the specific race
 window — which is the kind of answer a static proof doesn't hand you for
 free.
 
 Full writeup, including the falsification tests and minimal reproducers:
-[docs/case-study/CREDIBILITY_SUMMARY.md](https://github.com/weft-dst/weft/blob/main/docs/case-study/CREDIBILITY_SUMMARY.md).
+[docs/case-study/CREDIBILITY_SUMMARY.md](https://github.com/arnavsinghal09/weft/blob/main/docs/case-study/CREDIBILITY_SUMMARY.md).
