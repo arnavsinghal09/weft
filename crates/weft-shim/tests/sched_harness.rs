@@ -38,8 +38,17 @@ where
             );
             let h = std::thread::spawn(move || {
                 sc.child_started(tid);
-                bd(&sc, tid, &st);
+                // A panicking body must still hand the token back: a worker
+                // that dies without `thread_finished` leaves the scheduler
+                // waiting on it forever, turning an assertion failure into a
+                // silent hang of the whole test binary.
+                let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    bd(&sc, tid, &st);
+                }));
                 sc.thread_finished(tid);
+                if let Err(p) = r {
+                    std::panic::resume_unwind(p);
+                }
             });
             handles.push((h, tid));
         }
@@ -118,7 +127,8 @@ fn threads_that_exit_at_different_times_all_join() {
     // points; the harness's joins must all complete.
     let counts = Arc::new((0..8).map(|_| AtomicBool::new(false)).collect::<Vec<_>>());
     let seen = scenario(11, Strategy::Random, 8, counts, |sched, tid, done| {
-        let idx = usize::try_from(tid).unwrap();
+        // The harness main registers first as tid 0, so workers are 1..=8.
+        let idx = usize::try_from(tid).unwrap() - 1;
         for _ in 0..=idx {
             sched.mutex_lock(APP_MUTEX);
             sched.mutex_unlock(APP_MUTEX);
