@@ -3,7 +3,10 @@
 //!
 //! Exit codes (CI-friendly, matching the rest of the toolchain):
 //!   0  every invariant holds in the final quiescent state
-//!   2  at least one correctness invariant is violated (ring broken)
+//!   2  at least one correctness invariant is violated
+//!   3  DISCARD — the scenario broke the papers' failure precondition
+//!      (a failure stranded some node with no live successor), so any
+//!      violation in the run would be the harness's, not Chord's
 //!   1  the recording could not be read
 
 use std::process::ExitCode;
@@ -58,7 +61,13 @@ fn main() -> ExitCode {
         println!("=======================================================");
         ExitCode::from(0)
     } else {
-        println!("\nverdict   : VIOLATION — the ring is broken and cannot self-repair");
+        // State what the run observed (still violated after the quiescent
+        // repair tail); unrepairability is Zave's theorem about these four
+        // invariants, not an observation of this run.
+        println!(
+            "\nverdict   : VIOLATION — still violated after the quiescent repair tail \
+             (unrepairable per Zave for these invariants)"
+        );
         for v in &violations {
             println!("  ✗ {} : {}", v.invariant.name(), v.detail);
         }

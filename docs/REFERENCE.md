@@ -93,8 +93,11 @@ raft-check  <recording.weftlog>
 ```
 
 **Exit codes (shared contract):** `0` invariant holds · `2` VIOLATION ·
-`3` DISCARD (seed exercised nothing — uninformative) · `1` unreadable
-recording.
+`3` DISCARD · `1` unreadable recording. The meaning of DISCARD differs:
+for `raft-check` the seed exercised nothing (no leader was ever elected —
+uninformative); for `chord-check` the scenario violated the papers' failure
+precondition (a failure stranded some node with no live successor), so the
+run cannot count against Chord.
 
 ---
 
