@@ -177,3 +177,5 @@ mod tests {
         assert_eq!(v.restarts, 1);
     }
 }
+
+pub mod raft_model;

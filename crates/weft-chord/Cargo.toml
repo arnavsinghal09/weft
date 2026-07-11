@@ -13,6 +13,7 @@ repository.workspace = true
 authors.workspace = true
 
 [dependencies]
+stateright = "0.30"
 weft-replay = { workspace = true }
 
 [[bin]]
@@ -25,3 +26,7 @@ path = "src/bin/chord_trace.rs"
 
 [lints]
 workspace = true
+
+[[bin]]
+name = "chord-oracle"
+path = "src/bin/chord_oracle.rs"

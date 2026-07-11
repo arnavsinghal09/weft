@@ -561,3 +561,5 @@ mod tests {
             .any(|x| x.invariant == Invariantt::ConnectedAppendages));
     }
 }
+
+pub mod chord_model;

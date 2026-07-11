@@ -12,6 +12,7 @@ repository.workspace = true
 authors.workspace = true
 
 [dependencies]
+stateright = "0.30"
 weft-replay = { workspace = true }
 
 [[bin]]
@@ -20,3 +21,7 @@ path = "src/bin/raft_check.rs"
 
 [lints]
 workspace = true
+
+[[bin]]
+name = "raft-oracle"
+path = "src/bin/raft_oracle.rs"
