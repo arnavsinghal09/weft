@@ -264,7 +264,7 @@ pub fn exec(opts: &RunOpts) -> String {
 pub fn run_cluster(opts: &RunOpts) -> Result<i32, String> {
     let shim_path = find_shim(opts.shim.clone())?;
     let spec = opts.net.as_deref().unwrap_or("");
-    let model = weft_net::config::parse(opts.seed, spec)?;
+    let model = weft_net::config::parse(opts.seed, spec).map_err(|e| e.to_string())?;
 
     // A per-run socket path (pid disambiguates concurrent weft runs).
     let sock_path = std::env::temp_dir().join(format!("weft-broker-{}.sock", std::process::id()));

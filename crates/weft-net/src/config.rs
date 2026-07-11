@@ -7,14 +7,60 @@
 //! - `latency=exp:3000,bw=1000000`
 //! - `partition=0+1|2` (nodes 0 and 1 on one side, node 2 on the other)
 
+use std::fmt;
+
 use crate::fault::{FaultModel, Latency, Partition};
+
+/// Why a network-condition spec failed to parse. Hand-rolled (no `thiserror`)
+/// to keep this crate's dependency tree minimal; `Display` gives the same
+/// human-readable message callers previously got as a bare `String`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ParseError {
+    /// A clause is not `key=value`.
+    NotKeyValue(String),
+    /// The clause key is not part of the spec grammar.
+    UnknownKey(String),
+    /// The `latency` value is malformed (offending value, reason).
+    InvalidLatency(String, String),
+    /// The `loss` value is not a probability in `[0, 1]`.
+    InvalidLoss(String),
+    /// The `bw` value is not an integer.
+    InvalidBandwidth(String),
+    /// The `partition` value contains a bad node id.
+    InvalidPartition(String),
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NotKeyValue(clause) => {
+                write!(f, "network clause {clause:?} is not key=value")
+            }
+            Self::UnknownKey(key) => write!(f, "unknown network key {key:?}"),
+            Self::InvalidLatency(value, why) => {
+                write!(f, "latency {value:?}: {why}")
+            }
+            Self::InvalidLoss(value) => {
+                write!(f, "loss {value:?} is not a probability in [0,1]")
+            }
+            Self::InvalidBandwidth(value) => {
+                write!(f, "bw {value:?} is not an integer")
+            }
+            Self::InvalidPartition(value) => {
+                write!(f, "partition: bad node id {value:?}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for ParseError {}
 
 /// Parse a spec into a [`FaultModel`] bound to `seed`. An empty spec yields a
 /// perfectly reliable network.
 ///
 /// # Errors
-/// Returns a human-readable message for any malformed clause.
-pub fn parse(seed: u64, spec: &str) -> Result<FaultModel, String> {
+/// Returns a [`ParseError`] describing the first malformed clause.
+pub fn parse(seed: u64, spec: &str) -> Result<FaultModel, ParseError> {
     let mut m = FaultModel::reliable(seed);
     for clause in spec.split(',') {
         let clause = clause.trim();
@@ -23,59 +69,61 @@ pub fn parse(seed: u64, spec: &str) -> Result<FaultModel, String> {
         }
         let (k, v) = clause
             .split_once('=')
-            .ok_or_else(|| format!("network clause {clause:?} is not key=value"))?;
+            .ok_or_else(|| ParseError::NotKeyValue(clause.to_string()))?;
         match k.trim() {
             "latency" | "lat" => m.latency = parse_latency(v.trim())?,
             "loss" => {
                 m.loss = v
                     .trim()
                     .parse()
-                    .map_err(|_| format!("loss {v:?} is not a number"))?;
+                    .map_err(|_| ParseError::InvalidLoss(v.to_string()))?;
                 if !(0.0..=1.0).contains(&m.loss) {
-                    return Err(format!("loss {} out of [0,1]", m.loss));
+                    return Err(ParseError::InvalidLoss(v.to_string()));
                 }
             }
             "bw" | "bandwidth" => {
                 m.bandwidth_bps = v
                     .trim()
                     .parse()
-                    .map_err(|_| format!("bw {v:?} is not an integer"))?;
+                    .map_err(|_| ParseError::InvalidBandwidth(v.to_string()))?;
             }
             "partition" | "part" => m.partition = parse_partition(v.trim())?,
-            other => return Err(format!("unknown network key {other:?}")),
+            other => return Err(ParseError::UnknownKey(other.to_string())),
         }
     }
     Ok(m)
 }
 
-fn parse_latency(v: &str) -> Result<Latency, String> {
+fn parse_latency(v: &str) -> Result<Latency, ParseError> {
+    let bad = |why: &str| ParseError::InvalidLatency(v.to_string(), why.to_string());
     let (kind, arg) = v.split_once(':').unwrap_or((v, ""));
     match kind {
-        "fixed" | "const" => Ok(Latency::Fixed(parse_ns(arg)?)),
+        "fixed" | "const" => Ok(Latency::Fixed(parse_ns(v, arg)?)),
         "uniform" | "unif" => {
-            let (lo, hi) = arg
-                .split_once('-')
-                .ok_or_else(|| format!("uniform latency needs lo-hi, got {arg:?}"))?;
-            let (lo, hi) = (parse_ns(lo)?, parse_ns(hi)?);
+            let (lo, hi) = arg.split_once('-').ok_or_else(|| bad("needs lo-hi"))?;
+            let (lo, hi) = (parse_ns(v, lo)?, parse_ns(v, hi)?);
             if hi < lo {
-                return Err(format!("uniform latency hi<lo ({hi}<{lo})"));
+                return Err(bad(&format!("hi<lo ({hi}<{lo})")));
             }
             Ok(Latency::Uniform { lo, hi })
         }
         "exp" | "exponential" => Ok(Latency::Exponential {
-            mean: parse_ns(arg)?,
+            mean: parse_ns(v, arg)?,
         }),
-        other => Err(format!("unknown latency kind {other:?}")),
+        other => Err(bad(&format!("unknown kind {other:?}"))),
     }
 }
 
-fn parse_ns(s: &str) -> Result<u64, String> {
-    s.trim()
-        .parse()
-        .map_err(|_| format!("{s:?} is not an integer (nanoseconds)"))
+fn parse_ns(spec: &str, s: &str) -> Result<u64, ParseError> {
+    s.trim().parse().map_err(|_| {
+        ParseError::InvalidLatency(
+            spec.to_string(),
+            format!("{s:?} is not an integer (nanoseconds)"),
+        )
+    })
 }
 
-fn parse_partition(v: &str) -> Result<Partition, String> {
+fn parse_partition(v: &str) -> Result<Partition, ParseError> {
     let mut groups = Vec::new();
     for side in v.split('|') {
         let mut nodes = Vec::new();
@@ -84,7 +132,10 @@ fn parse_partition(v: &str) -> Result<Partition, String> {
             if n.is_empty() {
                 continue;
             }
-            nodes.push(n.parse::<u32>().map_err(|_| format!("bad node id {n:?}"))?);
+            nodes.push(
+                n.parse::<u32>()
+                    .map_err(|_| ParseError::InvalidPartition(n.to_string()))?,
+            );
         }
         if !nodes.is_empty() {
             groups.push(nodes);
@@ -120,9 +171,18 @@ mod tests {
 
     #[test]
     fn rejects_garbage() {
-        assert!(parse(1, "loss=2.0").is_err());
-        assert!(parse(1, "latency=weird:5").is_err());
-        assert!(parse(1, "nope=1").is_err());
-        assert!(parse(1, "latency=uniform:5").is_err());
+        assert!(matches!(
+            parse(1, "loss=2.0"),
+            Err(ParseError::InvalidLoss(_))
+        ));
+        assert!(matches!(
+            parse(1, "latency=weird:5"),
+            Err(ParseError::InvalidLatency(..))
+        ));
+        assert!(matches!(parse(1, "nope=1"), Err(ParseError::UnknownKey(_))));
+        assert!(matches!(
+            parse(1, "latency=uniform:5"),
+            Err(ParseError::InvalidLatency(..))
+        ));
     }
 }
