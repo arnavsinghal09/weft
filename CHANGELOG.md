@@ -9,6 +9,130 @@ minor versions may contain breaking changes.
 
 ## [Unreleased]
 
+Weft is a deterministic simulation testing (DST) framework for **unmodified
+Linux binaries** — no rewrite, no special runtime. Point `weft run` at a
+compiled program and one seed determines every clock read, every random
+byte, every thread interleaving, and (with `--net`) every network fate. A
+failing seed is a permanent, replayable bug report; `weft fuzz` finds those
+seeds automatically and shrinks each one down to a handful of operations.
+
+This release is the culmination of building that stack (interception →
+scheduling → network simulation → fault injection → record/replay → fuzzing)
+and then pointing it at real, previously-published bugs to check that the
+tool actually finds what it claims to: an unmodified Chord (2001)
+implementation loses ring connectivity in **57 of 500** seeded runs — the
+flaw Zave proved formally in 2012 — falling to **8 of 500** once the
+published liveness fixes are applied; a minimal Raft implementation
+reproduces the dissertation's votedFor-persistence edge case in **3 of 300**
+runs and never in the persisted-fix variant. Both studies, including their
+honest negative results, are in
+[docs/case-study/CREDIBILITY_SUMMARY.md](docs/case-study/CREDIBILITY_SUMMARY.md).
+
+Try it: [docs/USER_GUIDE.md](docs/USER_GUIDE.md) has a container-verified
+quickstart. Know its edges before you rely on it:
+[LIMITATIONS.md](LIMITATIONS.md) states them without hedging.
+
+### Added (Phase 7 — protocol case studies)
+
+- Validated the whole stack against two protocols with formally-proven
+  bugs, not synthetic examples. **Chord (SIGCOMM 2001):** an unmodified C
+  stabilization implementation (`examples/chord/chord_node.c`) run under
+  simulated network latency across 500 seeds loses ring connectivity in
+  57/500 runs at the original protocol's liveness discipline (`CHORD_FIX=0`),
+  falling to 41/500 with a partial fix and 8/500 with full liveness
+  discipline (`CHORD_FIX=2`) — the ordering held across every re-run. Each
+  hit is a `chord-trace`-able recording that pinpoints the exact op where a
+  node adopts a successor that died before its DEAD notice arrived (new
+  `weft-chord` crate: `chord-check` for pass/fail, `chord-trace` for the
+  per-node pointer timeline). The residual 8/500 traces to detection
+  latency inherent to any real network, not a remaining protocol bug —
+  documented as a quantified limit of dynamic testing, not swept under the
+  rug (docs/case-study/LEVEL_2_RESULTS.md).
+- **Raft (Ongaro's dissertation, Fig. 3.2 ElectionSafety):** a minimal
+  leader-election implementation (`examples/raft/raft_node.c`) reproduces
+  the documented votedFor-persistence edge case — a node that crash-restarts
+  with volatile vote state can double-vote and elect two leaders in the same
+  term — in 3/300 seeded runs, and 0/300 once votedFor is persisted before
+  responding to RPCs. New `weft-raft` crate (`raft-check`, ElectionSafety
+  checker over recordings). Tuning the election-timeout/latency ratio to
+  actually produce overlapping candidacies is itself documented as part of
+  the result (docs/case-study/RAFT_VALIDATION.md).
+- Full reverification of Phases 1–6's determinism, scheduling, network,
+  replay, and fuzzing claims against the finished stack, plus a 10,000-input
+  deterministic parser-robustness sweep standing in for the originally
+  planned `cargo fuzz` target (docs/PHASE_VERIFICATION.md), and measured
+  scalability characteristics — shim overhead, broker throughput, recording
+  size growth, shrink time at ~14k ops — with concrete optimization
+  candidates for future work (docs/SCALABILITY.md,
+  docs/SCALABILITY_RECOMMENDATIONS.md).
+
+### Added (Phase 8 — release engineering & documentation)
+
+- Documentation set for first-time users: `docs/USER_GUIDE.md` (container-
+  verified quickstart, three worked examples, simplified Chord case-study
+  walkthrough), `docs/REFERENCE.md` (complete CLI / env var / net spec /
+  scenario DSL / fuzz config / exit-code reference), `LIMITATIONS.md`
+  (exact platform boundaries, coverage gaps, determinism-guarantee strengths
+  and leak vectors, shrinker worst case), `VERSIONING.md` (independent
+  breaking-change contracts for the scenario DSL, weft-log format, and CLI),
+  and `docs/comparison.md` (comparison with FoundationDB / TigerBeetle /
+  Antithesis / Jepsen, non-Linux port analysis). `docs/architecture.md`
+  extended through Phases 5–7 and de-staled.
+- SBOM for the release: `sbom/weft-sbom.spdx.json` and
+  `sbom/weft-sbom.cdx.json` (SPDX 2.3 / CycloneDX 1.4, via `cargo sbom`);
+  34 packages, all permissive, `cargo deny check` fully green.
+- `weft-abi::ENV_FSYNC_LIES`: the fsync-lies env var is now registered in
+  the canonical env-var registry instead of a string literal in the shim.
+- Reproducible-build documentation with honest results:
+  `docs/RELEASE.md`.
+
+### Added (Phase 9 — project readiness)
+
+- `docs/comparison.md`: honest positioning against Antithesis and
+  TigerBeetle's public DST work — what Weft does today, what it deliberately
+  does not attempt, and where to reach for one of those instead.
+- `ROADMAP.md`: concrete next steps and an explicit not-planned section.
+- `DEVELOPMENT.md`: standalone onboarding — clone to first change, including
+  every sanitizer and fuzz target.
+- `CITATION.cff`.
+- 5 scoped, context-complete "good first issue" GitHub issues covering
+  near-term roadmap items (ENOSPC injection, random-fd `dup` tracking,
+  `random_r`/`initstate_r` interposition, a bounded-latency replay
+  invariant, broker-side latency histograms).
+- Adversarial self-review pass across every public-facing document, fixing
+  what it found rather than just noting it: the README and USER_GUIDE.md
+  each overclaimed live multi-process runs as seed-identical (contradicting
+  LIMITATIONS.md §3c, which they now match); `docs/comparison.md` listed
+  static-binary/Go coverage and TCP support as "deliberately not attempted"
+  when `ROADMAP.md` lists both as planned — reconciled; `LIMITATIONS.md` had
+  a shrink-time arithmetic error (~600× off — table totals per-violation,
+  not per-execution) and overstated a 14-node memory measurement as a
+  "practical ceiling"; `docs/case-study/CREDIBILITY_SUMMARY.md`'s Chord
+  level-2 table cited 448 valid seeds where its own source document
+  (LEVEL_2_RESULTS.md, same run) says 452, and two spots wrote "1.8%
+  (8/500)" as if those were the same fraction (8/500 = 1.6%; the 1.8% is
+  against the 452-valid-seed denominator). The user guide's Chord
+  walkthrough presented seed 17 as reliably reproducing a ring-break
+  live — verified empirically that it does not (2 of 3 fresh live runs came
+  back clean) and rewrote the walkthrough to teach the live-run-drift
+  lesson directly instead of contradicting it.
+
+### Changed
+
+- **BREAKING (API):** removed the never-implemented YAML scenario surface —
+  `Scenario::from_yaml` and `parse_scenario_yaml` parsed JSON while claiming
+  YAML. The DSL is JSON-only and documented as such; the `ParseError`
+  message no longer mentions YAML.
+- `weft-scenario` now inherits workspace package metadata and lints: it was
+  the one crate with no `license` field (failing `cargo deny check
+  licenses`), a drifted version (0.1.0 vs 0.0.1), and lints off (18 hidden
+  pedantic warnings, all fixed). Gained a crates.io `description`.
+- Historical phase reports moved from the repo root to `docs/history/`.
+- `scripts/bench-scalability.sh`: installs GNU time when absent (the
+  rust:*-bookworm image ships without it, which silently emptied the
+  node-scaling section) and labels the chrono row as time acceleration
+  rather than overhead. `docs/SCALABILITY.md` §A/§C corrected accordingly.
+
 ### Added
 
 - Seed fuzzing and failure shrinking (Phase 6): `weft fuzz --config <FILE>`
