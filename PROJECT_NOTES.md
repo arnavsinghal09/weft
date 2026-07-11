@@ -158,16 +158,35 @@ expect CI to fail unless its license is in the allow-list.
 
 ## Phase status
 
-- **Phase 0 (done, this repo state):** skeleton workspace, `weft` CLI stub
-  (`--help`/`--version` only), CI with the three blocking gates, community
-  files (SECURITY, CODE_OF_CONDUCT, CONTRIBUTING, issue/PR templates,
-  CHANGELOG in Keep-a-Changelog format, GOVERNANCE stub), graphify workflow
-  proven out (`.graphifyignore` tuned so reports stay signal-only).
-- **Phase 1 (next):** create `crates/weft-shim` (cdylib) + `crates/weft-abi`.
-  Interpose a first symbol set (start with `time`/`clock_gettime`/`random` —
-  smallest deterministic win), verify with `LD_PRELOAD` against `/bin/date`
-  or similar on Linux, add e2e test under `tests/` gated to Linux CI.
-  Argument parsing in the CLI stays hand-rolled until `weft run` lands.
+All nine phases are implemented and validated (details in each phase's
+design note under `docs/`, history in `docs/history/` and `CHANGELOG.md`):
+
+- **Phase 0 (done):** skeleton workspace, CI with the three blocking gates,
+  community files, graphify workflow.
+- **Phase 1 (done):** `weft-shim` + `weft-abi` — time, randomness, and
+  device-file interception; virtual clock; ChaCha8 domain streams.
+- **Phase 2 (done):** deterministic thread scheduler (token model,
+  `random`/`rr` strategies, deadlock detection) — docs/scheduling-model.md.
+- **Phase 3 (done):** simulated UDP network via seeded broker
+  (`weft-net`) — docs/network-model.md.
+- **Phase 4 (done):** fault model, scenario DSL (`weft-scenario`), file-I/O
+  faults, process orchestration — docs/fault-model.md.
+- **Phase 5 (done):** weft-log recording + byte-exact replay
+  (`weft-replay`) — docs/recording-format.md.
+- **Phase 6 (done):** seed fuzzing + ddmin shrinking (`weft-fuzz`) —
+  docs/fuzzing.md.
+- **Phase 7 (done):** validation case studies — Chord falsified (57→8/500),
+  Raft edge case reproduced (3/300 vs 0/300) —
+  docs/case-study/CREDIBILITY_SUMMARY.md.
+- **Phase 8 (done):** release engineering — full documentation set
+  (USER_GUIDE, REFERENCE, LIMITATIONS, VERSIONING, comparison, RELEASE),
+  SBOM, reproducible-build verification, container-verified quickstart.
+- **Phase 9 (done):** project readiness — landing-page README, focused
+  Antithesis/TigerBeetle comparison (docs/comparison.md), ROADMAP.md with an
+  explicit not-planned section, DEVELOPMENT.md onboarding path,
+  CITATION.cff, 5 scoped good-first-issue GitHub issues, and an adversarial
+  self-review pass that found and fixed real cross-document contradictions
+  and arithmetic errors (see CHANGELOG.md's Phase 9 entry for the list).
 
 ## Working conventions
 
