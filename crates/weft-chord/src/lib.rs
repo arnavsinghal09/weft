@@ -15,6 +15,8 @@
 //!   so the Phase 6 shrinker (`weft_fuzz::shrink`) can minimize a Chord
 //!   recording.
 
+pub mod chord_model;
+
 use std::collections::HashMap;
 
 use weft_replay::invariant::Invariant;
@@ -186,7 +188,7 @@ impl Snapshot {
         // AtLeastOneRing: there is a cycle of best successors.
         if ring.is_empty() {
             v.push(ChordViolation {
-                invariant: Invariantt::AtLeastOneRing,
+                invariant: InvariantKind::AtLeastOneRing,
                 detail: "no ring member: the best-successor graph has no cycle".into(),
             });
             // Everything else is defined relative to a ring; stop here.
@@ -197,7 +199,7 @@ impl Snapshot {
         let cycle = self.cycle_of(ring[0]);
         if cycle.len() != ring.len() {
             v.push(ChordViolation {
-                invariant: Invariantt::AtMostOneRing,
+                invariant: InvariantKind::AtMostOneRing,
                 detail: format!(
                     "ring split: {} ring members but the cycle through {} has {}",
                     ring.len(),
@@ -217,7 +219,7 @@ impl Snapshot {
             for &n3 in &ring {
                 if n3 != n1 && n3 != n2 && between(n1, n3, n2, m) {
                     v.push(ChordViolation {
-                        invariant: Invariantt::OrderedRing,
+                        invariant: InvariantKind::OrderedRing,
                         detail: format!("ring member {n3} lies between adjacent {n1} -> {n2}"),
                     });
                 }
@@ -243,7 +245,7 @@ impl Snapshot {
             }
             if !reached {
                 v.push(ChordViolation {
-                    invariant: Invariantt::ConnectedAppendages,
+                    invariant: InvariantKind::ConnectedAppendages,
                     detail: format!(
                         "appendage member {} cannot reach the ring via best successors",
                         s.ident
@@ -346,14 +348,14 @@ pub fn between(a: i32, b: i32, c: i32, m: u32) -> bool {
 
 /// Which invariant a violation is against.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Invariantt {
+pub enum InvariantKind {
     AtLeastOneRing,
     AtMostOneRing,
     OrderedRing,
     ConnectedAppendages,
 }
 
-impl Invariantt {
+impl InvariantKind {
     #[must_use]
     pub fn name(self) -> &'static str {
         match self {
@@ -374,7 +376,7 @@ impl Invariantt {
 /// A detected invariant violation over a snapshot.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ChordViolation {
-    pub invariant: Invariantt,
+    pub invariant: InvariantKind,
     pub detail: String,
 }
 
@@ -388,12 +390,12 @@ pub struct ChordViolation {
 pub struct ChordInvariant {
     snap: Snapshot,
     m: u32,
-    target: Invariantt,
+    target: InvariantKind,
 }
 
 impl ChordInvariant {
     #[must_use]
-    pub fn new(m: u32, target: Invariantt) -> Self {
+    pub fn new(m: u32, target: InvariantKind) -> Self {
         Self {
             snap: Snapshot::default(),
             m,
@@ -526,7 +528,7 @@ mod tests {
         assert!(s.ring_members().is_empty());
         let v = s.check(6);
         assert_eq!(v.len(), 1);
-        assert_eq!(v[0].invariant, Invariantt::AtLeastOneRing);
+        assert_eq!(v[0].invariant, InvariantKind::AtLeastOneRing);
     }
 
     #[test]
@@ -540,7 +542,7 @@ mod tests {
         ]);
         assert_eq!(s.ring_members(), vec![10, 30, 40, 50]);
         let v = s.check(6);
-        assert!(v.iter().any(|x| x.invariant == Invariantt::AtMostOneRing));
+        assert!(v.iter().any(|x| x.invariant == InvariantKind::AtMostOneRing));
     }
 
     #[test]
@@ -558,8 +560,6 @@ mod tests {
         let v = s.check(6);
         assert!(v
             .iter()
-            .any(|x| x.invariant == Invariantt::ConnectedAppendages));
+            .any(|x| x.invariant == InvariantKind::ConnectedAppendages));
     }
 }
-
-pub mod chord_model;

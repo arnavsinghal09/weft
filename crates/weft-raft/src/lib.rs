@@ -12,6 +12,8 @@
 //! 0=follower, 1=candidate, 2=leader; `alive == 0` marks a crash-restart
 //! tick (the node resumes next tick).
 
+pub mod raft_model;
+
 use std::collections::BTreeMap;
 
 use weft_replay::log::Event;
@@ -177,5 +179,3 @@ mod tests {
         assert_eq!(v.restarts, 1);
     }
 }
-
-pub mod raft_model;
