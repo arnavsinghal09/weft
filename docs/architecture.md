@@ -1,9 +1,18 @@
-# Weft architecture — Phases 1–4
+# Weft architecture
 
-This document describes the implemented deterministic simulation system: Phase 1
-(time & randomness), Phase 2 (thread scheduling), Phase 3 (network simulation),
-and Phase 4 (fault model, scenarios, and process orchestration). Aspirational
-content is confined to the final section and clearly marked.
+This document describes the implemented deterministic simulation system: time &
+randomness (Phase 1), thread scheduling (Phase 2), network simulation (Phase 3),
+fault model & scenarios (Phase 4), recording & replay (Phase 5), fuzzing &
+shrinking (Phase 6), and the protocol case studies that validated it (Phase 7).
+Aspirational content is confined to the final section and clearly marked.
+
+Read this before opening any code. Per-subsystem detail lives in the sibling
+documents: [scheduling-model.md](scheduling-model.md),
+[network-model.md](network-model.md), [fault-model.md](fault-model.md),
+[logical-time-model.md](logical-time-model.md),
+[recording-format.md](recording-format.md), [fuzzing.md](fuzzing.md),
+[process-orchestration.md](process-orchestration.md). Known boundaries are
+collected without spin in [../LIMITATIONS.md](../LIMITATIONS.md).
 
 ## Big picture
 
@@ -41,6 +50,8 @@ trees are covered (each `exec` restarts virtual time — see limitations).
 | `weft-scenario` | scenario DSL: JSON parsing + validation (Phase 4) | no |
 | `weft-replay` | event-log recording, deterministic replay, invariants (Phase 5) | no |
 | `weft-fuzz` | seed sweeping, delta-debugging shrinker, `weft fuzz` engine (Phase 6) | no |
+| `weft-chord` | Chord case study: `chord-check` / `chord-trace` invariant tools (Phase 7) | no |
+| `weft-raft` | Raft case study: `raft-check` ElectionSafety checker (Phase 7) | no |
 
 `weft-shim` and `weft-abi` keep a near-zero dependency tree (`libc`,
 `rand_chacha`, `rand_core`; all `no_std`-capable) because they execute inside
@@ -145,12 +156,14 @@ through SplitMix64 mixed with the run seed — deterministic, seed-sensitive,
 and safe for concurrent distinct state buffers.
 
 Thread safety: each domain stream sits behind its own `Mutex`; the clock is
-lock-free. **Phase 1 cross-thread guarantee**: the *sequence* each stream
-emits is fixed, so the multiset of values a group of racing threads draws is
-deterministic — but *which thread gets which value* still depends on the OS
-schedule until Phase 2's deterministic scheduler exists. (The `entropy.c`
-test target is built around exactly this invariant: everything it prints is
-commutative across threads.)
+lock-free. **Cross-thread guarantee**: the *sequence* each stream emits is
+fixed, so the multiset of values a group of racing threads draws is always
+deterministic. With the Phase 2 scheduler active (the default), thread order
+is itself a function of the seed, so *which thread gets which value* is
+deterministic too. Under `--no-sched`, or for threads the scheduler does not
+manage, attribution falls back to the OS schedule and only the multiset
+guarantee holds. (The `entropy.c` test target is built around exactly that
+weaker invariant: everything it prints is commutative across threads.)
 
 ### /dev/urandom mechanics
 
@@ -185,6 +198,39 @@ device rather than fail.
 stderr — formatted in a stack buffer, written with one raw `write(2)`, no
 allocation — e.g. `[weft] clock_gettime(1) -> 3.000004000`.
 
+## Above the shim: broker, recording, replay, fuzzing
+
+The pieces outside the target process compose in one pipeline:
+
+- **Broker (`weft-net`, Phase 3).** With `--net`, `weft run` hosts a broker on
+  a Unix-domain socket; the shim diverts `AF_INET/SOCK_DGRAM` traffic to it.
+  All fault decisions (latency, loss, reordering, partitions, bandwidth) come
+  from a *pure decision core* — a function of `(seed, src, dst, seq)` — so the
+  same seed always deals every message the same fate. The broker's
+  linearization order is the single source of truth for "what happened".
+- **Recording (`weft-replay`, Phase 5).** `--record <LOG>` streams every
+  broker operation to a weft-log file (v1, gzip-aware). The broker
+  linearization order is the only non-seed input to a run, so the log plus
+  the seed reconstructs the run exactly. See recording-format.md.
+- **Replay (`weft replay`).** Re-executes a recording against the same pure
+  core and verifies byte-for-byte identity (a stream digest), optionally
+  checking invariants (`--check fifo,dup`). Replay of a recording is exact on
+  every platform — no shim required.
+- **Fuzzing (`weft fuzz`, Phase 6).** Sweeps fault seeds over a deterministic
+  workload against the decision core, dedups violations by identity, and
+  delta-debugs each one to a minimal reproducer log that `weft replay`
+  verifies. See fuzzing.md.
+- **Orchestrator + scenarios (`weft-scenario`, Phase 4).** A JSON scenario
+  describes nodes, network faults, filesystem faults, and timed events
+  (crash/restart/partition changes); the orchestrator executes it. See
+  process-orchestration.md.
+
+**Validation (Phase 7).** The whole stack was pointed at real protocol
+implementations: Chord (2001) stabilization — falsified, 57/500 seeds break
+the ring, reduced to 8/500 with published fixes — and Raft leader election —
+the dissertation's votedFor-persistence edge case reproduced (3/300) and
+falsified by the fix (0/300). See docs/case-study/CREDIBILITY_SUMMARY.md.
+
 ## Empirical results (Phase 1 exit criteria)
 
 Measured on the CI configuration (Linux, x86-64; see
@@ -214,9 +260,10 @@ Measured on the CI configuration (Linux, x86-64; see
 - **`vfork`/`posix_spawn` children are covered only via env inheritance**;
   an `exec` into a *setuid* binary drops `LD_PRELOAD` (glibc secure-mode) and
   escapes determinism silently.
-- **Cross-thread value attribution is scheduling-dependent** (see above)
-  until the Phase 2 scheduler. Thread-*safety* is guaranteed and
-  sanitizer-checked now; cross-thread *determinism* is not yet.
+- **Cross-thread value attribution is scheduling-dependent under
+  `--no-sched`** and for unmanaged threads (see above). With the scheduler
+  active (the default), attribution is deterministic; thread-*safety* is
+  guaranteed and sanitizer-checked in both modes.
 - **CPU-time clocks are approximated** (`CLOCK_PROCESS_CPUTIME_ID` /
   `CLOCK_THREAD_CPUTIME_ID` return virtual-monotonic time, not modeled CPU
   consumption).
@@ -236,13 +283,13 @@ Measured on the CI configuration (Linux, x86-64; see
 - **musl**: the `open`→`read` fd path works, but `fopen("/dev/urandom")`
   uses `fopencookie`, which musl also provides; however the shim is only
   CI-tested against glibc today.
-- **`fopen` substream *indices* are assigned in open order, which is
-  scheduling-dependent across threads.** Each stream's bytes are reproducible
-  given its index, and a program that consumes every stream and combines the
-  results commutatively (like `entropy.c`'s XOR/sum) is fully deterministic.
-  But a program whose logic depends on *which thread* read *which* stream sees
-  scheduling-dependent attribution — the same Phase 1 limitation as the shared
-  `read` path, lifted only when the Phase 2 scheduler fixes thread order.
+- **`fopen` substream *indices* are assigned in open order.** With the
+  scheduler active, open order is seed-deterministic and this is a non-issue.
+  Under `--no-sched` the order is OS-scheduled: each stream's bytes are still
+  reproducible given its index, and a program that combines every stream
+  commutatively (like `entropy.c`'s XOR/sum) stays fully deterministic, but
+  logic depending on *which thread* opened *which* stream sees
+  scheduling-dependent attribution.
 - **File-descriptor duplication of random fds** (`dup`, `dup2`, `fcntl(F_DUPFD)`)
   is not tracked: a duped random fd reads real `/dev/null` (EOF). No real
   program observed doing this yet; fix is a straightforward hook addition.
@@ -259,5 +306,6 @@ Measured on the CI configuration (Linux, x86-64; see
   but closes the static-binary and Go gaps. Not started; the engine was
   deliberately built process-external-safe (pure functions of seed + counter)
   so it can serve both mechanisms.
-- Phase 2 (deterministic scheduler) upgrades the cross-thread story from
-  "deterministic multiset" to "deterministic schedule".
+- Folding live-target fuzzing (the `weft run --record` path) into the
+  `weft fuzz` sweep loop, so shim-path campaigns get the same
+  dedup-and-shrink treatment the broker-core sweep has today.
