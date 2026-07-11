@@ -38,7 +38,7 @@ sha256sum target/release/weft target/release/libweft_shim.so \
           target/release/chord-check target/release/raft-check
 ```
 
-## Measured results (2026-07-09, rustc 1.84.1)
+## Measured results (2026-07-09, rustc 1.84.1; re-verified 2026-07-11 on the current tree, aarch64: two from-scratch same-path builds byte-identical)
 
 | condition | result |
 |---|---|
