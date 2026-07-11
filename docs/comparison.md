@@ -25,9 +25,9 @@ system's choice is strictly stronger.
 
 TigerBeetle owns the strongest guarantee on this list: because the
 database was *designed* against a simulated environment from the start —
-its own event loop, its own storage abstraction, no OS threads — every line
-of production code runs under simulation, deterministically, including disk
-and scheduler behavior. Weft cannot match that depth. A raw syscall, or a
+a single-threaded, statically-allocated core with its own event loop and
+storage abstraction — every line of production code runs under simulation,
+deterministically, including disk and scheduler behavior. Weft cannot match that depth. A raw syscall, or a
 lock the shim doesn't model, escapes Weft's simulation entirely
 (LIMITATIONS.md §2); TigerBeetle's VOPR has no such escape hatch because
 there is no OS-level nondeterminism left in the loop to escape through.
@@ -56,11 +56,12 @@ The trades Weft makes against it: (1) open source vs. commercial service —
 Weft has no signup, no VM packaging step, no vendor relationship; (2) a
 per-process shim is `weft run -- ./binary`, versus packaging your system
 into a VM image; (3) Weft's failing artifact is a megabyte-scale recording
-replayable in milliseconds on a laptop, not a VM snapshot; (4) at the libc
-boundary, Weft can be *semantic* — "this fsync lies", "this fd's writes
-tear" — where a hypervisor sees only device-level state, which can make
-Weft's failure reports more directly actionable for the specific fault
-classes it models. For the distributed-protocol logic bugs Phase 7 targeted
+replayable in milliseconds on a laptop, not a VM snapshot; (4) Weft's *interception* is at the libc
+boundary, so its fault vocabulary is stated in libc terms — "this fsync
+lies", "this fd's writes tear" — where hypervisor-level interception
+expresses faults at the device level. (Antithesis pairs its hypervisor
+with in-guest SDK assertions and instrumentation, so this is a contrast of
+interception layers, not of overall observability.) For the distributed-protocol logic bugs Phase 7 targeted
 (Chord's ring invariant, Raft's ElectionSafety), the libc surface proved
 sufficient to find both. **If you need whole-system fidelity — kernel
 interaction, unsupported languages, static binaries — Antithesis is the
@@ -111,7 +112,9 @@ single-threaded async) — the same "use it if you're starting fresh"
 argument applies. **Jepsen** is the field's referee in the opposite
 direction from all of the above: real clusters, real networks, external
 faults, a checker over observed histories, and *no* determinism — a Jepsen
-failure reproduces only statistically, with no seed to hand a developer.
+failure reproduces only statistically (its generators are seeded, but a
+seed does not determine cluster timing, so replaying one does not
+reproduce the failure).
 Weft's faults are simulated (less real than Jepsen's), but every failure is
 a replayable artifact; the two compose well — a Weft recording of a
 Jepsen-discovered bug class is the debugging story Jepsen deliberately
@@ -133,7 +136,10 @@ combination:
    (docs/case-study/) test the *tool* against protocol bugs with formal
    provenance (Zave 2012, Ongaro 2014) — including quantified negative
    results (the 1.8% detection-latency tail) rather than only success
-   stories.
+   stories. The evidence design is a controlled A/B: identical seed sets
+   with only the fix flag differing (Chord 57 → 41 → 8 across liveness
+   levels; Raft 3/300 buggy vs 0/300 fixed), so the deltas isolate the
+   protocol change, not the harness.
 
 ## What a non-Linux port would require
 
