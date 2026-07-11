@@ -74,7 +74,11 @@ join/fail):**
   `Between[s.prdc, n, s]`.
 - **reconcile(n)**: `n.succ2 := n.succ.succ` (adopt successor's successor).
 - **update(n)**: replace a dead `succ` with the first live entry in
-  `[succ, succ2]`.
+  `[succ, succ2]`. (Note: "live" here is the *model's* judgment — Zave's
+  model assumes perfect failure detection, so operations may consult true
+  liveness. An implementation of the 2001 protocol has no failure
+  detector; our `CHORD_FIX=0` therefore promotes without a liveness test.
+  See LEVEL_2_RESULTS.md, "Transcription caveat".)
 - **flush(n)**: if `n.prdc` is dead, `n.prdc := none`.
 
 ## Failure assumption (from the Chord papers, enforced by our harness)

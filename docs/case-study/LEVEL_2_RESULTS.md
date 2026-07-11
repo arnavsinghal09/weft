@@ -22,6 +22,30 @@ the same 500 fault seeds (`net=latency=uniform:1000-60000`, m=6, 6 members =
   promotion, and the GETSUCC responder all refuse **known-dead** nodes (the
   intent of Zave's "best version").
 
+Exactly what each level checks (from `chord_node.c`, verifiable):
+
+| adoption site | level 0 | level 1 | level 2 |
+|---|---|---|---|
+| stabilize adopts successor's predecessor | unchecked | live-only | live-only |
+| reconcile adopts successor's successor into succ2 | unchecked | unchecked | live-only |
+| update promotes succ2 over a dead succ | unchecked | unchecked | live-only |
+| GETSUCC responder's answer | as-is | as-is | best live |
+
+**Transcription caveat (attribution, not verdict).** chord-spec.md
+transcribes Zave's modeled `update(n)` as "replace a dead succ with the
+first **live** entry in [succ, succ2]" — in her model every operation may
+consult liveness, because the model assumes perfect (instantaneous,
+global) failure detection. `CHORD_FIX=0` instead models the 2001 protocol
+as implementable without any failure detector: no adoption consults
+liveness anywhere. Under that reading, level-0 `update` can promote a
+dead succ2 — a step Zave's modeled update would not take — so a fraction
+of the level-0/level-1 counts may arrive via a path her model does not
+have, and the 41→8 delta bundles the reconcile/update/GETSUCC checks
+without isolating update's own contribution. The traced level-0 root
+cause (seed 17) is the **stabilize** path, which is the same in both
+readings, so the headline mechanism is unaffected; the per-path
+attribution of the residual counts is the open question.
+
 Runs whose failure schedule broke the papers' precondition (a failure that
 strands some node with no live successor at the moment of death) are
 discarded by `chord-check` (exit 3), so violation counts are over valid runs
@@ -34,6 +58,20 @@ only.
 | 0 original | 57 / 500 | 96 | 404 | **14.1%** |
 | 1 stabilize-only fix | 41 / 500 | 60 | 440 | **9.3%** |
 | 2 full discipline | 8 / 500 | 48 | 452 | **1.8%** |
+
+By violated invariant (exhaustive tally over all 106 surviving
+`seed-*.verdict` files; `chord-check` fires on any of the four):
+
+| arm | AtLeastOneRing | ConnectedAppendages | OrderedRing / AtMostOneRing |
+|---|---|---|---|
+| 0 original (57) | 55 | 2 | 0 |
+| 1 stabilize fix (41) | 39 | 2 | 0 |
+| 2 full discipline (8) | 8 | 0 | 0 |
+
+So "breaks the ring" is precisely true for 55 of the 57 (and all 8
+level-2 residuals); the other 2 per arm are permanently stranded
+appendages — the ring itself intact. Both classes are in Zave's
+"required for correctness / unrepairable" set.
 
 Caveat (documented Phase-3 limitation): cross-process arrival order is
 OS-scheduled, so counts drift run-to-run; comparisons are statistical, not

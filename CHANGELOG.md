@@ -19,10 +19,10 @@ seeds automatically and shrinks each one down to a handful of operations.
 This release is the culmination of building that stack (interception →
 scheduling → network simulation → fault injection → record/replay → fuzzing)
 and then pointing it at real, previously-published bugs to check that the
-tool actually finds what it claims to: an unmodified Chord (2001)
-implementation loses ring connectivity in **57 of 500** seeded runs — the
-flaw Zave proved formally in 2012 — falling to **8 of 500** once the
-published liveness fixes are applied; a minimal Raft implementation
+tool actually finds what it claims to: our own minimal, uninstrumented
+Chord (2001) implementation violates Zave's ring-maintenance invariants in
+**57 of 500** seeded runs — the flaw she proved formally in 2012 — falling
+to **8 of 500** once the published liveness fixes are applied; a minimal Raft implementation
 reproduces the dissertation's votedFor-persistence edge case in **3 of 300**
 runs and never in the persisted-fix variant. Both studies, including their
 honest negative results, are in
