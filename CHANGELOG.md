@@ -13,8 +13,10 @@ Weft is a deterministic simulation testing (DST) framework for **unmodified
 Linux binaries** — no rewrite, no special runtime. Point `weft run` at a
 compiled program and one seed determines every clock read, every random
 byte, every thread interleaving, and (with `--net`) every network fate. A
-failing seed is a permanent, replayable bug report; `weft fuzz` finds those
-seeds automatically and shrinks each one down to a handful of operations.
+failing seed is a permanent, replayable bug report; `weft fuzz` sweeps
+fault seeds against invariant checks and shrinks each violation down to a
+handful of operations (its built-in workload is the framework's network
+core; campaigns against your own binary are scripted — docs/fuzzing.md).
 
 This release is the culmination of building that stack (interception →
 scheduling → network simulation → fault injection → record/replay → fuzzing)
@@ -35,10 +37,12 @@ quickstart. Know its edges before you rely on it:
 ### Added (Phase 7 — protocol case studies)
 
 - Validated the whole stack against two protocols with formally-proven
-  bugs, not synthetic examples. **Chord (SIGCOMM 2001):** an unmodified C
-  stabilization implementation (`examples/chord/chord_node.c`) run under
-  simulated network latency across 500 seeds loses ring connectivity in
-  57/500 runs at the original protocol's liveness discipline (`CHORD_FIX=0`),
+  bugs, not synthetic examples. **Chord (SIGCOMM 2001):** our own minimal,
+  uninstrumented C stabilization implementation
+  (`examples/chord/chord_node.c`; it knows nothing about Weft) run under
+  simulated network latency across 500 seeds violates the ring-maintenance
+  invariants in 57/500 runs at the original protocol's liveness discipline
+  (`CHORD_FIX=0`),
   falling to 41/500 with a partial fix and 8/500 with full liveness
   discipline (`CHORD_FIX=2`) — the ordering held across every re-run. Each
   hit is a `chord-trace`-able recording that pinpoints the exact op where a
@@ -79,8 +83,8 @@ quickstart. Know its edges before you rely on it:
   Antithesis / Jepsen, non-Linux port analysis). `docs/architecture.md`
   extended through Phases 5–7 and de-staled.
 - SBOM for the release: `sbom/weft-sbom.spdx.json` and
-  `sbom/weft-sbom.cdx.json` (SPDX 2.3 / CycloneDX 1.4, via `cargo sbom`);
-  34 packages, all permissive, `cargo deny check` fully green.
+  `sbom/weft-sbom.cdx.json` (SPDX 2.3 / CycloneDX 1.6, via `cargo sbom`);
+  71 packages (the stateright cross-validation oracles pull a large subtree), all permissive, `cargo deny check` fully green.
 - `weft-abi::ENV_FSYNC_LIES`: the fsync-lies env var is now registered in
   the canonical env-var registry instead of a string literal in the shim.
 - Reproducible-build documentation with honest results:

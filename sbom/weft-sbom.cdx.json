@@ -2,6 +2,932 @@
   "bomFormat": "CycloneDX",
   "components": [
     {
+      "author": "bluss",
+      "bom-ref": "CycloneDxRef-Component-scopeguard-1.2.0",
+      "description": "A RAII scope guard that will run a given closure when it goes out of scope,\neven if the code between panics (assuming unwinding panic).\n\nDefines the macros `defer!`, `defer_on_unwind!`, `defer_on_success!` as\nshorthands for guards with one of the implemented strategies.\n",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/scopeguard/"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/bluss/scopeguard"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "scopeguard",
+      "purl": "pkg:cargo/scopeguard@1.2.0",
+      "type": "library",
+      "version": "1.2.0"
+    },
+    {
+      "author": "Pyfisch <pyfisch@posteo.org>",
+      "bom-ref": "CycloneDxRef-Component-httpdate-1.0.3",
+      "description": "HTTP date parsing and formatting",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/pyfisch/httpdate"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "httpdate",
+      "purl": "pkg:cargo/httpdate@1.0.3",
+      "type": "library",
+      "version": "1.0.3"
+    },
+    {
+      "author": "Microsoft",
+      "bom-ref": "CycloneDxRef-Component-windows_x86_64_gnu-0.52.6",
+      "description": "Import lib for Windows",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/microsoft/windows-rs"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "windows_x86_64_gnu",
+      "purl": "pkg:cargo/windows_x86_64_gnu@0.52.6",
+      "type": "library",
+      "version": "0.52.6"
+    },
+    {
+      "author": "The Rand Project Developers",
+      "bom-ref": "CycloneDxRef-Component-getrandom-0.3.1",
+      "description": "A small cross-platform library for retrieving random data from system source",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/getrandom"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/rust-random/getrandom"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "getrandom",
+      "purl": "pkg:cargo/getrandom@0.3.1",
+      "type": "library",
+      "version": "0.3.1"
+    },
+    {
+      "author": "Aleksey Kladov <aleksey.kladov@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-once_cell-1.21.4",
+      "description": "Single assignment cells and lazy values.",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/once_cell"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/matklad/once_cell"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "once_cell",
+      "purl": "pkg:cargo/once_cell@1.21.4",
+      "type": "library",
+      "version": "1.21.4"
+    },
+    {
+      "author": "Erick Tryzelaar <erick.tryzelaar@gmail.com>, David Tolnay <dtolnay@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-serde_json-1.0.150",
+      "description": "A JSON serialization file format",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/serde_json"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/serde-rs/json"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "serde_json",
+      "purl": "pkg:cargo/serde_json@1.0.150",
+      "type": "library",
+      "version": "1.0.150"
+    },
+    {
+      "author": "",
+      "bom-ref": "CycloneDxRef-Component-crossbeam-utils-0.8.22",
+      "description": "Utilities for concurrent programming",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/crossbeam-rs/crossbeam/tree/master/crossbeam-utils"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/crossbeam-rs/crossbeam"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "crossbeam-utils",
+      "purl": "pkg:cargo/crossbeam-utils@0.8.22",
+      "type": "library",
+      "version": "0.8.22"
+    },
+    {
+      "author": "David Tolnay <dtolnay@gmail.com>, Alex Crichton <alex@alexcrichton.com>",
+      "bom-ref": "CycloneDxRef-Component-proc-macro2-1.0.106",
+      "description": "A substitute implementation of the compiler's `proc_macro` API to decouple token-based libraries from the procedural macro use case.",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/proc-macro2"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dtolnay/proc-macro2"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "proc-macro2",
+      "purl": "pkg:cargo/proc-macro2@1.0.106",
+      "type": "library",
+      "version": "1.0.106"
+    },
+    {
+      "author": "Acrimon <joel.wejdenstal@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-dashmap-5.5.3",
+      "description": "Blazing fast concurrent HashMap for Rust.",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/dashmap"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/xacrimon/dashmap"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/xacrimon/dashmap"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "dashmap",
+      "purl": "pkg:cargo/dashmap@5.5.3",
+      "type": "library",
+      "version": "5.5.3"
+    },
+    {
+      "author": "",
+      "bom-ref": "CycloneDxRef-Component-wit-bindgen-rt-0.33.0",
+      "description": "Runtime support for the `wit-bindgen` crate\n",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/bytecodealliance/wit-bindgen"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/bytecodealliance/wasi-rs"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "wit-bindgen-rt",
+      "purl": "pkg:cargo/wit-bindgen-rt@0.33.0",
+      "type": "library",
+      "version": "0.33.0"
+    },
+    {
+      "author": "Microsoft",
+      "bom-ref": "CycloneDxRef-Component-windows_i686_gnullvm-0.52.6",
+      "description": "Import lib for Windows",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/microsoft/windows-rs"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "windows_i686_gnullvm",
+      "purl": "pkg:cargo/windows_i686_gnullvm@0.52.6",
+      "type": "library",
+      "version": "0.52.6"
+    },
+    {
+      "author": "Microsoft",
+      "bom-ref": "CycloneDxRef-Component-windows_x86_64_gnullvm-0.52.6",
+      "description": "Import lib for Windows",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/microsoft/windows-rs"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "windows_x86_64_gnullvm",
+      "purl": "pkg:cargo/windows_x86_64_gnullvm@0.52.6",
+      "type": "library",
+      "version": "0.52.6"
+    },
+    {
+      "author": "Thomas Bahn <thomas@thomas-bahn.net>, Torbjørn Birch Moltu <t.b.moltu@lyse.net>, Simon Sapin <simon.sapin@exyr.org>",
+      "bom-ref": "CycloneDxRef-Component-ascii-1.1.0",
+      "description": "ASCII-only equivalents to `char`, `str` and `String`.",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/ascii"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/tomprogrammer/rust-ascii"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "ascii",
+      "purl": "pkg:cargo/ascii@1.1.0",
+      "type": "library",
+      "version": "1.1.0"
+    },
+    {
+      "author": "Jeremy Soller <jackpot51@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-redox_syscall-0.5.18",
+      "description": "A Rust library to access raw Redox system calls",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/redox_syscall"
+        },
+        {
+          "type": "vcs",
+          "url": "https://gitlab.redox-os.org/redox-os/syscall"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "redox_syscall",
+      "purl": "pkg:cargo/redox_syscall@0.5.18",
+      "type": "library",
+      "version": "0.5.18"
+    },
+    {
+      "author": "The Rand Project Developers, The Rust Project Developers, The CryptoCorrosion Contributors",
+      "bom-ref": "CycloneDxRef-Component-rand_chacha-0.3.1",
+      "description": "ChaCha random number generator\n",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/rand_chacha"
+        },
+        {
+          "type": "website",
+          "url": "https://rust-random.github.io/book"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/rust-random/rand"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "rand_chacha",
+      "purl": "pkg:cargo/rand_chacha@0.3.1",
+      "type": "library",
+      "version": "0.3.1"
+    },
+    {
+      "author": "Alex Crichton <alex@alexcrichton.com>",
+      "bom-ref": "CycloneDxRef-Component-cfg-if-1.0.4",
+      "description": "A macro to ergonomically define an item depending on a large number of #[cfg]\nparameters. Structured like an if-else chain, the first matching branch is the\nitem that gets emitted.\n",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/rust-lang/cfg-if"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "cfg-if",
+      "purl": "pkg:cargo/cfg-if@1.0.4",
+      "type": "library",
+      "version": "1.0.4"
+    },
+    {
+      "author": "Microsoft",
+      "bom-ref": "CycloneDxRef-Component-windows_x86_64_msvc-0.52.6",
+      "description": "Import lib for Windows",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/microsoft/windows-rs"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "windows_x86_64_msvc",
+      "purl": "pkg:cargo/windows_x86_64_msvc@0.52.6",
+      "type": "library",
+      "version": "0.52.6"
+    },
+    {
+      "author": "David Tolnay <dtolnay@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-quote-1.0.46",
+      "description": "Quasi-quoting macro quote!(...)",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/quote/"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dtolnay/quote"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "quote",
+      "purl": "pkg:cargo/quote@1.0.46",
+      "type": "library",
+      "version": "1.0.46"
+    },
+    {
+      "author": "Sam Rijs <srijs@airpost.net>, Alex Crichton <alex@alexcrichton.com>",
+      "bom-ref": "CycloneDxRef-Component-crc32fast-1.5.0",
+      "description": "Fast, SIMD-accelerated CRC32 (IEEE) checksum computation",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/srijs/rust-crc32fast"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "crc32fast",
+      "purl": "pkg:cargo/crc32fast@1.5.0",
+      "type": "library",
+      "version": "1.5.0"
+    },
+    {
+      "author": "Frommi <daniil.liferenko@gmail.com>, oyvindln <oyvindln@users.noreply.github.com>, Rich Geldreich richgel99@gmail.com",
+      "bom-ref": "CycloneDxRef-Component-miniz_oxide-0.8.9",
+      "description": "DEFLATE compression and decompression library rewritten in Rust based on miniz",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/miniz_oxide"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Zlib OR Apache-2.0"
+        }
+      ],
+      "name": "miniz_oxide",
+      "purl": "pkg:cargo/miniz_oxide@0.8.9",
+      "type": "library",
+      "version": "0.8.9"
+    },
+    {
+      "author": "Marvin Countryman <me@maar.vin>",
+      "bom-ref": "CycloneDxRef-Component-simd-adler32-0.3.9",
+      "description": "A SIMD-accelerated Adler-32 hash algorithm implementation.",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/mcountryman/simd-adler32"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "simd-adler32",
+      "purl": "pkg:cargo/simd-adler32@0.3.9",
+      "type": "library",
+      "version": "0.3.9"
+    },
+    {
+      "author": "Joshua Liebow-Feeser <joshlf@google.com>, Jack Wrenn <jswrenn@amazon.com>",
+      "bom-ref": "CycloneDxRef-Component-zerocopy-derive-0.8.54",
+      "description": "Custom derive for traits from the zerocopy crate",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/google/zerocopy"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "BSD-2-Clause OR Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "zerocopy-derive",
+      "purl": "pkg:cargo/zerocopy-derive@0.8.54",
+      "type": "application",
+      "version": "0.8.54"
+    },
+    {
+      "author": "Amanieu d'Antras <amanieu@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-lock_api-0.4.14",
+      "description": "Wrappers to create fully-featured Mutex and RwLock types. Compatible with no_std.",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/Amanieu/parking_lot"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "lock_api",
+      "purl": "pkg:cargo/lock_api@0.4.14",
+      "type": "library",
+      "version": "0.4.14"
+    },
+    {
+      "author": "Parity Technologies <admin@parity.io>",
+      "bom-ref": "CycloneDxRef-Component-nohash-hasher-0.2.0",
+      "description": "An implementation of `std::hash::Hasher` which does not hash at all.",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/paritytech/nohash-hasher"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "nohash-hasher",
+      "purl": "pkg:cargo/nohash-hasher@0.2.0",
+      "type": "library",
+      "version": "0.2.0"
+    },
+    {
+      "author": "Weft contributors",
+      "bom-ref": "CycloneDxRef-Component-weft-replay-0.0.1",
+      "description": "Event-log recording, deterministic replay, and invariant checking for Weft",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/arnavsinghal09/weft"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "weft-replay",
+      "type": "library",
+      "version": "0.0.1"
+    },
+    {
+      "author": "Joshua Liebow-Feeser <joshlf@google.com>, Jack Wrenn <jswrenn@amazon.com>",
+      "bom-ref": "CycloneDxRef-Component-zerocopy-0.8.54",
+      "description": "Zerocopy makes zero-cost memory manipulation effortless. We write \"unsafe\" so you don't have to.",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/google/zerocopy"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "BSD-2-Clause OR Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "zerocopy",
+      "purl": "pkg:cargo/zerocopy@0.8.54",
+      "type": "library",
+      "version": "0.8.54"
+    },
+    {
+      "author": "Weft contributors",
+      "bom-ref": "CycloneDxRef-Component-weft-net-0.0.1",
+      "description": "Weft network simulation: wire protocol, seeded fault model, and broker",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/arnavsinghal09/weft"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "weft-net",
+      "type": "library",
+      "version": "0.0.1"
+    },
+    {
+      "author": "The Rust Project Developers",
+      "bom-ref": "CycloneDxRef-Component-libc-0.2.186",
+      "description": "Raw FFI bindings to platform libraries like libc.",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/rust-lang/libc"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "libc",
+      "purl": "pkg:cargo/libc@0.2.186",
+      "type": "library",
+      "version": "0.2.186"
+    },
+    {
+      "author": "David Tolnay <dtolnay@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-syn-2.0.118",
+      "description": "Parser for Rust source code",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/syn"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dtolnay/syn"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "syn",
+      "purl": "pkg:cargo/syn@2.0.118",
+      "type": "library",
+      "version": "2.0.118"
+    },
+    {
+      "author": "Andrew Hickman <andrew.hickman1@sky.com>",
+      "bom-ref": "CycloneDxRef-Component-id-set-0.2.2",
+      "description": "A bitset implementation that stores data on the stack for small sizes.",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/id-set/"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/andrewhickman/id-set"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "id-set",
+      "purl": "pkg:cargo/id-set@0.2.2",
+      "type": "library",
+      "version": "0.2.2"
+    },
+    {
+      "author": "The Rand Project Developers, The Rust Project Developers",
+      "bom-ref": "CycloneDxRef-Component-rand-0.8.6",
+      "description": "Random number generators and other randomness functionality.\n",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/rand"
+        },
+        {
+          "type": "website",
+          "url": "https://rust-random.github.io/book"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/rust-random/rand"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "rand",
+      "purl": "pkg:cargo/rand@0.8.6",
+      "type": "library",
+      "version": "0.8.6"
+    },
+    {
+      "author": "Microsoft",
+      "bom-ref": "CycloneDxRef-Component-windows_aarch64_gnullvm-0.52.6",
+      "description": "Import lib for Windows",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/microsoft/windows-rs"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "windows_aarch64_gnullvm",
+      "purl": "pkg:cargo/windows_aarch64_gnullvm@0.52.6",
+      "type": "library",
+      "version": "0.52.6"
+    },
+    {
+      "author": "Alex Crichton <alex@alexcrichton.com>, Josh Triplett <josh@joshtriplett.org>",
+      "bom-ref": "CycloneDxRef-Component-flate2-1.1.9",
+      "description": "DEFLATE compression and decompression exposed as Read/BufRead/Write streams.\nSupports miniz_oxide and multiple zlib implementations. Supports zlib, gzip,\nand raw deflate streams.\n",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/flate2"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/rust-lang/flate2-rs"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/rust-lang/flate2-rs"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "flate2",
+      "purl": "pkg:cargo/flate2@1.1.9",
+      "type": "library",
+      "version": "1.1.9"
+    },
+    {
+      "author": "The Cranelift Project Developers",
+      "bom-ref": "CycloneDxRef-Component-wasi-0.13.3+wasi-0.2.2",
+      "description": "WASI API bindings for Rust",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/wasi"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/bytecodealliance/wasi-rs"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "wasi",
+      "purl": "pkg:cargo/wasi@0.13.3%2Bwasi-0.2.2",
+      "type": "library",
+      "version": "0.13.3+wasi-0.2.2"
+    },
+    {
+      "author": "The Cranelift Project Developers",
+      "bom-ref": "CycloneDxRef-Component-wasi-0.11.1+wasi-snapshot-preview1",
+      "description": "Experimental WASI API bindings for Rust",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/wasi"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/bytecodealliance/wasi"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "wasi",
+      "purl": "pkg:cargo/wasi@0.11.1%2Bwasi-snapshot-preview1",
+      "type": "library",
+      "version": "0.11.1+wasi-snapshot-preview1"
+    },
+    {
+      "author": "pierre.krieger1708@gmail.com, Corey Farwell <coreyf@rwell.org>",
+      "bom-ref": "CycloneDxRef-Component-tiny_http-0.12.0",
+      "description": "Low level HTTP server library",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://tiny-http.github.io/tiny-http/tiny_http/index.html"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/tiny-http/tiny-http"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "tiny_http",
+      "purl": "pkg:cargo/tiny_http@0.12.0",
+      "type": "library",
+      "version": "0.12.0"
+    },
+    {
+      "author": "Jonathan Nadal <jon.nadal@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-choice-0.0.2",
+      "description": "Similar to `either` but supports an unbounded number of variants.",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/jonnadal/choice"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "choice",
+      "purl": "pkg:cargo/choice@0.0.2",
+      "type": "library",
+      "version": "0.0.2"
+    },
+    {
+      "author": "David Tolnay <dtolnay@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-itoa-1.0.18",
+      "description": "Fast integer primitive to string conversion",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/itoa"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dtolnay/itoa"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "itoa",
+      "purl": "pkg:cargo/itoa@1.0.18",
+      "type": "library",
+      "version": "1.0.18"
+    },
+    {
+      "author": "Amanieu d'Antras <amanieu@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-parking_lot-0.12.5",
+      "description": "More compact and efficient implementations of the standard synchronization primitives.",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/Amanieu/parking_lot"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "parking_lot",
+      "purl": "pkg:cargo/parking_lot@0.12.5",
+      "type": "library",
+      "version": "0.12.5"
+    },
+    {
+      "author": "David Tolnay <dtolnay@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-unicode-ident-1.0.24",
+      "description": "Determine whether characters have the XID_Start or XID_Continue properties according to Unicode Standard Annex #31",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/unicode-ident"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dtolnay/unicode-ident"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "(MIT OR Apache-2.0) AND Unicode-3.0"
+        }
+      ],
+      "name": "unicode-ident",
+      "purl": "pkg:cargo/unicode-ident@1.0.24",
+      "type": "library",
+      "version": "1.0.24"
+    },
+    {
+      "author": "The CryptoCorrosion Contributors",
+      "bom-ref": "CycloneDxRef-Component-ppv-lite86-0.2.21",
+      "description": "Cross-platform cryptography-oriented low-level SIMD library.",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/cryptocorrosion/cryptocorrosion"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "ppv-lite86",
+      "purl": "pkg:cargo/ppv-lite86@0.2.21",
+      "type": "library",
+      "version": "0.2.21"
+    },
+    {
       "author": "Erick Tryzelaar <erick.tryzelaar@gmail.com>, David Tolnay <dtolnay@gmail.com>",
       "bom-ref": "CycloneDxRef-Component-serde_derive-1.0.228",
       "description": "Macros 1.1 implementation of #[derive(Serialize, Deserialize)]",
@@ -30,32 +956,124 @@
       "version": "1.0.228"
     },
     {
-      "author": "Andrew Gallant <jamslam@gmail.com>, bluss",
-      "bom-ref": "CycloneDxRef-Component-memchr-2.8.2",
-      "description": "Provides extremely fast (uses SIMD on x86_64, aarch64 and wasm32) routines for\n1, 2 or 3 byte search and single substring search.\n",
+      "author": "The Rand Project Developers, The Rust Project Developers",
+      "bom-ref": "CycloneDxRef-Component-rand_core-0.6.4",
+      "description": "Core random number generator traits and tools for implementation.\n",
       "externalReferences": [
         {
           "type": "documentation",
-          "url": "https://docs.rs/memchr/"
+          "url": "https://docs.rs/rand_core"
         },
         {
           "type": "website",
-          "url": "https://github.com/BurntSushi/memchr"
+          "url": "https://rust-random.github.io/book"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/BurntSushi/memchr"
+          "url": "https://github.com/rust-random/rand"
         }
       ],
       "licenses": [
         {
-          "expression": "Unlicense OR MIT"
+          "expression": "MIT OR Apache-2.0"
         }
       ],
-      "name": "memchr",
-      "purl": "pkg:cargo/memchr@2.8.2",
+      "name": "rand_core",
+      "purl": "pkg:cargo/rand_core@0.6.4",
       "type": "library",
-      "version": "2.8.2"
+      "version": "0.6.4"
+    },
+    {
+      "author": "David Tolnay <dtolnay@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-zmij-1.0.21",
+      "description": "A double-to-string conversion algorithm based on Schubfach and yy",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/zmij"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dtolnay/zmij"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "zmij",
+      "purl": "pkg:cargo/zmij@1.0.21",
+      "type": "library",
+      "version": "1.0.21"
+    },
+    {
+      "author": "David Tolnay <dtolnay@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-thiserror-impl-1.0.69",
+      "description": "Implementation detail of the `thiserror` crate",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/dtolnay/thiserror"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "thiserror-impl",
+      "purl": "pkg:cargo/thiserror-impl@1.0.69",
+      "type": "application",
+      "version": "1.0.69"
+    },
+    {
+      "author": "The Rust Project Developers",
+      "bom-ref": "CycloneDxRef-Component-log-0.4.33",
+      "description": "A lightweight logging facade for Rust\n",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/log"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/rust-lang/log"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "log",
+      "purl": "pkg:cargo/log@0.4.33",
+      "type": "library",
+      "version": "0.4.33"
+    },
+    {
+      "author": "The Servo Project Developers",
+      "bom-ref": "CycloneDxRef-Component-smallvec-1.15.2",
+      "description": "'Small vector' optimization: store up to a small number of items on the stack",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/smallvec/"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/servo/rust-smallvec"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "smallvec",
+      "purl": "pkg:cargo/smallvec@1.15.2",
+      "type": "library",
+      "version": "1.15.2"
     },
     {
       "author": "Erick Tryzelaar <erick.tryzelaar@gmail.com>, David Tolnay <dtolnay@gmail.com>",
@@ -87,143 +1105,12 @@
     },
     {
       "author": "Weft contributors",
-      "bom-ref": "CycloneDxRef-Component-weft-scenario-0.0.1",
-      "description": "Fault-scenario DSL (JSON) parsing and validation for the Weft DST framework",
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/weft-dst/weft"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "name": "weft-scenario",
-      "type": "library",
-      "version": "0.0.1"
-    },
-    {
-      "author": "Frommi <daniil.liferenko@gmail.com>, oyvindln <oyvindln@users.noreply.github.com>, Rich Geldreich richgel99@gmail.com",
-      "bom-ref": "CycloneDxRef-Component-miniz_oxide-0.8.9",
-      "description": "DEFLATE compression and decompression library rewritten in Rust based on miniz",
-      "externalReferences": [
-        {
-          "type": "documentation",
-          "url": "https://docs.rs/miniz_oxide"
-        },
-        {
-          "type": "website",
-          "url": "https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide"
-        },
-        {
-          "type": "vcs",
-          "url": "https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT OR Zlib OR Apache-2.0"
-        }
-      ],
-      "name": "miniz_oxide",
-      "purl": "pkg:cargo/miniz_oxide@0.8.9",
-      "type": "library",
-      "version": "0.8.9"
-    },
-    {
-      "author": "David Tolnay <dtolnay@gmail.com>",
-      "bom-ref": "CycloneDxRef-Component-quote-1.0.46",
-      "description": "Quasi-quoting macro quote!(...)",
-      "externalReferences": [
-        {
-          "type": "documentation",
-          "url": "https://docs.rs/quote/"
-        },
-        {
-          "type": "vcs",
-          "url": "https://github.com/dtolnay/quote"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "name": "quote",
-      "purl": "pkg:cargo/quote@1.0.46",
-      "type": "library",
-      "version": "1.0.46"
-    },
-    {
-      "author": "David Tolnay <dtolnay@gmail.com>",
-      "bom-ref": "CycloneDxRef-Component-thiserror-impl-1.0.69",
-      "description": "Implementation detail of the `thiserror` crate",
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/dtolnay/thiserror"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "name": "thiserror-impl",
-      "purl": "pkg:cargo/thiserror-impl@1.0.69",
-      "type": "application",
-      "version": "1.0.69"
-    },
-    {
-      "author": "Joshua Liebow-Feeser <joshlf@google.com>, Jack Wrenn <jswrenn@amazon.com>",
-      "bom-ref": "CycloneDxRef-Component-zerocopy-0.8.52",
-      "description": "Zerocopy makes zero-cost memory manipulation effortless. We write \"unsafe\" so you don't have to.",
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/google/zerocopy"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "BSD-2-Clause OR Apache-2.0 OR MIT"
-        }
-      ],
-      "name": "zerocopy",
-      "purl": "pkg:cargo/zerocopy@0.8.52",
-      "type": "library",
-      "version": "0.8.52"
-    },
-    {
-      "author": "Alex Crichton <alex@alexcrichton.com>",
-      "bom-ref": "CycloneDxRef-Component-cfg-if-1.0.4",
-      "description": "A macro to ergonomically define an item depending on a large number of #[cfg]\nparameters. Structured like an if-else chain, the first matching branch is the\nitem that gets emitted.\n",
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/rust-lang/cfg-if"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "name": "cfg-if",
-      "purl": "pkg:cargo/cfg-if@1.0.4",
-      "type": "library",
-      "version": "1.0.4"
-    },
-    {
-      "author": "Weft contributors",
       "bom-ref": "CycloneDxRef-Component-weft-fuzz-0.0.1",
       "description": "Seed fuzzing and failure shrinking for Weft",
       "externalReferences": [
         {
           "type": "vcs",
-          "url": "https://github.com/weft-dst/weft"
+          "url": "https://github.com/arnavsinghal09/weft"
         }
       ],
       "licenses": [
@@ -234,6 +1121,46 @@
       "name": "weft-fuzz",
       "type": "library",
       "version": "0.0.1"
+    },
+    {
+      "author": "Microsoft",
+      "bom-ref": "CycloneDxRef-Component-windows_i686_gnu-0.52.6",
+      "description": "Import lib for Windows",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/microsoft/windows-rs"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "windows_i686_gnu",
+      "purl": "pkg:cargo/windows_i686_gnu@0.52.6",
+      "type": "library",
+      "version": "0.52.6"
+    },
+    {
+      "author": "",
+      "bom-ref": "CycloneDxRef-Component-windows-link-0.2.1",
+      "description": "Linking for Windows",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/microsoft/windows-rs"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "windows-link",
+      "purl": "pkg:cargo/windows-link@0.2.1",
+      "type": "library",
+      "version": "0.2.1"
     },
     {
       "author": "David Tolnay <dtolnay@gmail.com>",
@@ -260,13 +1187,13 @@
       "version": "1.0.69"
     },
     {
-      "author": "Sam Rijs <srijs@airpost.net>, Alex Crichton <alex@alexcrichton.com>",
-      "bom-ref": "CycloneDxRef-Component-crc32fast-1.5.0",
-      "description": "Fast, SIMD-accelerated CRC32 (IEEE) checksum computation",
+      "author": "Microsoft",
+      "bom-ref": "CycloneDxRef-Component-windows_aarch64_msvc-0.52.6",
+      "description": "Import lib for Windows",
       "externalReferences": [
         {
           "type": "vcs",
-          "url": "https://github.com/srijs/rust-crc32fast"
+          "url": "https://github.com/microsoft/windows-rs"
         }
       ],
       "licenses": [
@@ -274,82 +1201,10 @@
           "expression": "MIT OR Apache-2.0"
         }
       ],
-      "name": "crc32fast",
-      "purl": "pkg:cargo/crc32fast@1.5.0",
+      "name": "windows_aarch64_msvc",
+      "purl": "pkg:cargo/windows_aarch64_msvc@0.52.6",
       "type": "library",
-      "version": "1.5.0"
-    },
-    {
-      "author": "Joshua Liebow-Feeser <joshlf@google.com>, Jack Wrenn <jswrenn@amazon.com>",
-      "bom-ref": "CycloneDxRef-Component-zerocopy-derive-0.8.52",
-      "description": "Custom derive for traits from the zerocopy crate",
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/google/zerocopy"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "BSD-2-Clause OR Apache-2.0 OR MIT"
-        }
-      ],
-      "name": "zerocopy-derive",
-      "purl": "pkg:cargo/zerocopy-derive@0.8.52",
-      "type": "application",
-      "version": "0.8.52"
-    },
-    {
-      "author": "David Tolnay <dtolnay@gmail.com>",
-      "bom-ref": "CycloneDxRef-Component-zmij-1.0.21",
-      "description": "A double-to-string conversion algorithm based on Schubfach and yy",
-      "externalReferences": [
-        {
-          "type": "documentation",
-          "url": "https://docs.rs/zmij"
-        },
-        {
-          "type": "vcs",
-          "url": "https://github.com/dtolnay/zmij"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT"
-        }
-      ],
-      "name": "zmij",
-      "purl": "pkg:cargo/zmij@1.0.21",
-      "type": "library",
-      "version": "1.0.21"
-    },
-    {
-      "author": "The Rand Project Developers, The Rust Project Developers",
-      "bom-ref": "CycloneDxRef-Component-rand_core-0.6.4",
-      "description": "Core random number generator traits and tools for implementation.\n",
-      "externalReferences": [
-        {
-          "type": "documentation",
-          "url": "https://docs.rs/rand_core"
-        },
-        {
-          "type": "website",
-          "url": "https://rust-random.github.io/book"
-        },
-        {
-          "type": "vcs",
-          "url": "https://github.com/rust-random/rand"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "name": "rand_core",
-      "purl": "pkg:cargo/rand_core@0.6.4",
-      "type": "library",
-      "version": "0.6.4"
+      "version": "0.52.6"
     },
     {
       "author": "Erick Tryzelaar <erick.tryzelaar@gmail.com>, David Tolnay <dtolnay@gmail.com>",
@@ -380,17 +1235,13 @@
       "version": "1.0.228"
     },
     {
-      "author": "David Tolnay <dtolnay@gmail.com>",
-      "bom-ref": "CycloneDxRef-Component-syn-2.0.118",
-      "description": "Parser for Rust source code",
+      "author": "Corey Farwell <coreyf@rwell.org>",
+      "bom-ref": "CycloneDxRef-Component-chunked_transfer-1.5.0",
+      "description": "Encoder and decoder for HTTP chunked transfer coding (RFC 7230 § 4.1)",
       "externalReferences": [
         {
-          "type": "documentation",
-          "url": "https://docs.rs/syn"
-        },
-        {
           "type": "vcs",
-          "url": "https://github.com/dtolnay/syn"
+          "url": "https://github.com/frewsxcv/rust-chunked-transfer"
         }
       ],
       "licenses": [
@@ -398,236 +1249,10 @@
           "expression": "MIT OR Apache-2.0"
         }
       ],
-      "name": "syn",
-      "purl": "pkg:cargo/syn@2.0.118",
+      "name": "chunked_transfer",
+      "purl": "pkg:cargo/chunked_transfer@1.5.0",
       "type": "library",
-      "version": "2.0.118"
-    },
-    {
-      "author": "Erick Tryzelaar <erick.tryzelaar@gmail.com>, David Tolnay <dtolnay@gmail.com>",
-      "bom-ref": "CycloneDxRef-Component-serde_json-1.0.150",
-      "description": "A JSON serialization file format",
-      "externalReferences": [
-        {
-          "type": "documentation",
-          "url": "https://docs.rs/serde_json"
-        },
-        {
-          "type": "vcs",
-          "url": "https://github.com/serde-rs/json"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "name": "serde_json",
-      "purl": "pkg:cargo/serde_json@1.0.150",
-      "type": "library",
-      "version": "1.0.150"
-    },
-    {
-      "author": "The CryptoCorrosion Contributors",
-      "bom-ref": "CycloneDxRef-Component-ppv-lite86-0.2.21",
-      "description": "Cross-platform cryptography-oriented low-level SIMD library.",
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/cryptocorrosion/cryptocorrosion"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "name": "ppv-lite86",
-      "purl": "pkg:cargo/ppv-lite86@0.2.21",
-      "type": "library",
-      "version": "0.2.21"
-    },
-    {
-      "author": "Weft contributors",
-      "bom-ref": "CycloneDxRef-Component-weft-abi-0.0.1",
-      "description": "Shared constants and seed plumbing for the Weft DST framework",
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/weft-dst/weft"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "name": "weft-abi",
-      "type": "library",
-      "version": "0.0.1"
-    },
-    {
-      "author": "Alex Crichton <alex@alexcrichton.com>, Josh Triplett <josh@joshtriplett.org>",
-      "bom-ref": "CycloneDxRef-Component-flate2-1.1.9",
-      "description": "DEFLATE compression and decompression exposed as Read/BufRead/Write streams.\nSupports miniz_oxide and multiple zlib implementations. Supports zlib, gzip,\nand raw deflate streams.\n",
-      "externalReferences": [
-        {
-          "type": "documentation",
-          "url": "https://docs.rs/flate2"
-        },
-        {
-          "type": "website",
-          "url": "https://github.com/rust-lang/flate2-rs"
-        },
-        {
-          "type": "vcs",
-          "url": "https://github.com/rust-lang/flate2-rs"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "name": "flate2",
-      "purl": "pkg:cargo/flate2@1.1.9",
-      "type": "library",
-      "version": "1.1.9"
-    },
-    {
-      "author": "The Rust Project Developers",
-      "bom-ref": "CycloneDxRef-Component-libc-0.2.186",
-      "description": "Raw FFI bindings to platform libraries like libc.",
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/rust-lang/libc"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "name": "libc",
-      "purl": "pkg:cargo/libc@0.2.186",
-      "type": "library",
-      "version": "0.2.186"
-    },
-    {
-      "author": "David Tolnay <dtolnay@gmail.com>",
-      "bom-ref": "CycloneDxRef-Component-itoa-1.0.18",
-      "description": "Fast integer primitive to string conversion",
-      "externalReferences": [
-        {
-          "type": "documentation",
-          "url": "https://docs.rs/itoa"
-        },
-        {
-          "type": "vcs",
-          "url": "https://github.com/dtolnay/itoa"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "name": "itoa",
-      "purl": "pkg:cargo/itoa@1.0.18",
-      "type": "library",
-      "version": "1.0.18"
-    },
-    {
-      "author": "Weft contributors",
-      "bom-ref": "CycloneDxRef-Component-weft-replay-0.0.1",
-      "description": "Event-log recording, deterministic replay, and invariant checking for Weft",
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/weft-dst/weft"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "name": "weft-replay",
-      "type": "library",
-      "version": "0.0.1"
-    },
-    {
-      "author": "David Tolnay <dtolnay@gmail.com>",
-      "bom-ref": "CycloneDxRef-Component-unicode-ident-1.0.24",
-      "description": "Determine whether characters have the XID_Start or XID_Continue properties according to Unicode Standard Annex #31",
-      "externalReferences": [
-        {
-          "type": "documentation",
-          "url": "https://docs.rs/unicode-ident"
-        },
-        {
-          "type": "vcs",
-          "url": "https://github.com/dtolnay/unicode-ident"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "(MIT OR Apache-2.0) AND Unicode-3.0"
-        }
-      ],
-      "name": "unicode-ident",
-      "purl": "pkg:cargo/unicode-ident@1.0.24",
-      "type": "library",
-      "version": "1.0.24"
-    },
-    {
-      "author": "The Rand Project Developers, The Rust Project Developers, The CryptoCorrosion Contributors",
-      "bom-ref": "CycloneDxRef-Component-rand_chacha-0.3.1",
-      "description": "ChaCha random number generator\n",
-      "externalReferences": [
-        {
-          "type": "documentation",
-          "url": "https://docs.rs/rand_chacha"
-        },
-        {
-          "type": "website",
-          "url": "https://rust-random.github.io/book"
-        },
-        {
-          "type": "vcs",
-          "url": "https://github.com/rust-random/rand"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "name": "rand_chacha",
-      "purl": "pkg:cargo/rand_chacha@0.3.1",
-      "type": "library",
-      "version": "0.3.1"
-    },
-    {
-      "author": "Marvin Countryman <me@maar.vin>",
-      "bom-ref": "CycloneDxRef-Component-simd-adler32-0.3.9",
-      "description": "A SIMD-accelerated Adler-32 hash algorithm implementation.",
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/mcountryman/simd-adler32"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT"
-        }
-      ],
-      "name": "simd-adler32",
-      "purl": "pkg:cargo/simd-adler32@0.3.9",
-      "type": "library",
-      "version": "0.3.9"
+      "version": "1.5.0"
     },
     {
       "author": "Jonas Schievink <jonasschievink@gmail.com>, oyvindln <oyvindln@users.noreply.github.com>",
@@ -654,17 +1279,64 @@
       "version": "2.0.1"
     },
     {
-      "author": "David Tolnay <dtolnay@gmail.com>, Alex Crichton <alex@alexcrichton.com>",
-      "bom-ref": "CycloneDxRef-Component-proc-macro2-1.0.106",
-      "description": "A substitute implementation of the compiler's `proc_macro` API to decouple token-based libraries from the procedural macro use case.",
+      "author": "Weft contributors",
+      "bom-ref": "CycloneDxRef-Component-weft-abi-0.0.1",
+      "description": "Shared constants and seed plumbing for the Weft DST framework",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/arnavsinghal09/weft"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "weft-abi",
+      "type": "library",
+      "version": "0.0.1"
+    },
+    {
+      "author": "Andrew Gallant <jamslam@gmail.com>, bluss",
+      "bom-ref": "CycloneDxRef-Component-memchr-2.8.3",
+      "description": "Provides extremely fast (uses SIMD on x86_64, aarch64 and wasm32) routines for\n1, 2 or 3 byte search and single substring search.\n",
       "externalReferences": [
         {
           "type": "documentation",
-          "url": "https://docs.rs/proc-macro2"
+          "url": "https://docs.rs/memchr/"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/BurntSushi/memchr"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/dtolnay/proc-macro2"
+          "url": "https://github.com/BurntSushi/memchr"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Unlicense OR MIT"
+        }
+      ],
+      "name": "memchr",
+      "purl": "pkg:cargo/memchr@2.8.3",
+      "type": "library",
+      "version": "2.8.3"
+    },
+    {
+      "author": "Tom Kaitchuck <Tom.Kaitchuck@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-ahash-0.8.12",
+      "description": "A non-cryptographic hash function using AES-NI for high performance",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/ahash"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/tkaitchuck/ahash"
         }
       ],
       "licenses": [
@@ -672,19 +1344,71 @@
           "expression": "MIT OR Apache-2.0"
         }
       ],
-      "name": "proc-macro2",
-      "purl": "pkg:cargo/proc-macro2@1.0.106",
+      "name": "ahash",
+      "purl": "pkg:cargo/ahash@0.8.12",
       "type": "library",
-      "version": "1.0.106"
+      "version": "0.8.12"
     },
     {
-      "author": "Weft contributors",
-      "bom-ref": "CycloneDxRef-Component-weft-net-0.0.1",
-      "description": "Weft network simulation: wire protocol, seeded fault model, and broker",
+      "author": "The Rust Project Developers",
+      "bom-ref": "CycloneDxRef-Component-bitflags-2.13.0",
+      "description": "A macro to generate structures which behave like bitflags.\n",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/bitflags"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/bitflags/bitflags"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/bitflags/bitflags"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "bitflags",
+      "purl": "pkg:cargo/bitflags@2.13.0",
+      "type": "library",
+      "version": "2.13.0"
+    },
+    {
+      "author": "The Rand Project Developers",
+      "bom-ref": "CycloneDxRef-Component-getrandom-0.2.17",
+      "description": "A small cross-platform library for retrieving random data from system source",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/getrandom"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/rust-random/getrandom"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "getrandom",
+      "purl": "pkg:cargo/getrandom@0.2.17",
+      "type": "library",
+      "version": "0.2.17"
+    },
+    {
+      "author": "Amanieu d'Antras <amanieu@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-hashbrown-0.14.5",
+      "description": "A Rust port of Google's SwissTable hash map",
       "externalReferences": [
         {
           "type": "vcs",
-          "url": "https://github.com/weft-dst/weft"
+          "url": "https://github.com/rust-lang/hashbrown"
         }
       ],
       "licenses": [
@@ -692,25 +1416,129 @@
           "expression": "MIT OR Apache-2.0"
         }
       ],
-      "name": "weft-net",
+      "name": "hashbrown",
+      "purl": "pkg:cargo/hashbrown@0.14.5",
+      "type": "library",
+      "version": "0.14.5"
+    },
+    {
+      "author": "Jonathan Nadal <jon.nadal@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-stateright-0.30.2",
+      "description": "A model checker for implementing distributed systems.",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://www.stateright.rs"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/stateright/stateright"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "stateright",
+      "purl": "pkg:cargo/stateright@0.30.2",
+      "type": "library",
+      "version": "0.30.2"
+    },
+    {
+      "author": "Microsoft",
+      "bom-ref": "CycloneDxRef-Component-windows-targets-0.52.6",
+      "description": "Import libs for Windows",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/microsoft/windows-rs"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "windows-targets",
+      "purl": "pkg:cargo/windows-targets@0.52.6",
+      "type": "library",
+      "version": "0.52.6"
+    },
+    {
+      "author": "Weft contributors",
+      "bom-ref": "CycloneDxRef-Component-weft-scenario-0.0.1",
+      "description": "Fault-scenario DSL (JSON) parsing and validation for the Weft DST framework",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/arnavsinghal09/weft"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "weft-scenario",
       "type": "library",
       "version": "0.0.1"
+    },
+    {
+      "author": "Amanieu d'Antras <amanieu@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-parking_lot_core-0.9.12",
+      "description": "An advanced API for creating custom synchronization primitives.",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/Amanieu/parking_lot"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "parking_lot_core",
+      "purl": "pkg:cargo/parking_lot_core@0.9.12",
+      "type": "library",
+      "version": "0.9.12"
+    },
+    {
+      "author": "Microsoft",
+      "bom-ref": "CycloneDxRef-Component-windows_i686_msvc-0.52.6",
+      "description": "Import lib for Windows",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/microsoft/windows-rs"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "windows_i686_msvc",
+      "purl": "pkg:cargo/windows_i686_msvc@0.52.6",
+      "type": "library",
+      "version": "0.52.6"
     }
   ],
   "dependencies": [
     {
       "dependsOn": [
-        "CycloneDxRef-Component-quote-1.0.46",
-        "CycloneDxRef-Component-unicode-ident-1.0.24",
-        "CycloneDxRef-Component-proc-macro2-1.0.106"
+        "CycloneDxRef-Component-zerocopy-derive-0.8.54"
       ],
-      "ref": "CycloneDxRef-Component-syn-2.0.118"
+      "ref": "CycloneDxRef-Component-zerocopy-0.8.54"
     },
     {
       "dependsOn": [
-        "CycloneDxRef-Component-thiserror-impl-1.0.69"
+        "CycloneDxRef-Component-cfg-if-1.0.4",
+        "CycloneDxRef-Component-wasi-0.11.1+wasi-snapshot-preview1",
+        "CycloneDxRef-Component-libc-0.2.186"
       ],
-      "ref": "CycloneDxRef-Component-thiserror-1.0.69"
+      "ref": "CycloneDxRef-Component-getrandom-0.2.17"
     },
     {
       "dependsOn": [
@@ -721,82 +1549,20 @@
     },
     {
       "dependsOn": [
-        "CycloneDxRef-Component-quote-1.0.46",
-        "CycloneDxRef-Component-syn-2.0.118",
-        "CycloneDxRef-Component-proc-macro2-1.0.106"
-      ],
-      "ref": "CycloneDxRef-Component-serde_derive-1.0.228"
-    },
-    {
-      "dependsOn": [
-        "CycloneDxRef-Component-weft-replay-0.0.1"
-      ],
-      "ref": "CycloneDxRef-Component-weft-raft-0.0.1"
-    },
-    {
-      "dependsOn": [
-        "CycloneDxRef-Component-simd-adler32-0.3.9",
-        "CycloneDxRef-Component-adler2-2.0.1"
-      ],
-      "ref": "CycloneDxRef-Component-miniz_oxide-0.8.9"
-    },
-    {
-      "dependsOn": [
-        "CycloneDxRef-Component-cfg-if-1.0.4"
-      ],
-      "ref": "CycloneDxRef-Component-crc32fast-1.5.0"
-    },
-    {
-      "dependsOn": [
-        "CycloneDxRef-Component-proc-macro2-1.0.106"
-      ],
-      "ref": "CycloneDxRef-Component-quote-1.0.46"
-    },
-    {
-      "dependsOn": [
-        "CycloneDxRef-Component-zerocopy-0.8.52"
-      ],
-      "ref": "CycloneDxRef-Component-ppv-lite86-0.2.21"
-    },
-    {
-      "dependsOn": [
-        "CycloneDxRef-Component-syn-2.0.118",
-        "CycloneDxRef-Component-quote-1.0.46",
-        "CycloneDxRef-Component-proc-macro2-1.0.106"
-      ],
-      "ref": "CycloneDxRef-Component-zerocopy-derive-0.8.52"
-    },
-    {
-      "dependsOn": [
-        "CycloneDxRef-Component-zerocopy-derive-0.8.52"
-      ],
-      "ref": "CycloneDxRef-Component-zerocopy-0.8.52"
-    },
-    {
-      "dependsOn": [
-        "CycloneDxRef-Component-weft-fuzz-0.0.1",
-        "CycloneDxRef-Component-weft-scenario-0.0.1",
+        "CycloneDxRef-Component-serde-1.0.228",
+        "CycloneDxRef-Component-choice-0.0.2",
         "CycloneDxRef-Component-serde_json-1.0.150",
-        "CycloneDxRef-Component-weft-net-0.0.1",
-        "CycloneDxRef-Component-weft-abi-0.0.1",
-        "CycloneDxRef-Component-libc-0.2.186",
-        "CycloneDxRef-Component-weft-replay-0.0.1"
+        "CycloneDxRef-Component-log-0.4.33",
+        "CycloneDxRef-Component-parking_lot-0.12.5",
+        "CycloneDxRef-Component-dashmap-5.5.3",
+        "CycloneDxRef-Component-id-set-0.2.2",
+        "CycloneDxRef-Component-crossbeam-utils-0.8.22",
+        "CycloneDxRef-Component-tiny_http-0.12.0",
+        "CycloneDxRef-Component-nohash-hasher-0.2.0",
+        "CycloneDxRef-Component-rand-0.8.6",
+        "CycloneDxRef-Component-ahash-0.8.12"
       ],
-      "ref": "CycloneDxRef-Component-weft-dst-0.0.1"
-    },
-    {
-      "dependsOn": [
-        "CycloneDxRef-Component-rand_core-0.6.4",
-        "CycloneDxRef-Component-rand_chacha-0.3.1",
-        "CycloneDxRef-Component-weft-abi-0.0.1"
-      ],
-      "ref": "CycloneDxRef-Component-weft-net-0.0.1"
-    },
-    {
-      "dependsOn": [
-        "CycloneDxRef-Component-weft-replay-0.0.1"
-      ],
-      "ref": "CycloneDxRef-Component-weft-chord-0.0.1"
+      "ref": "CycloneDxRef-Component-stateright-0.30.2"
     },
     {
       "dependsOn": [
@@ -806,50 +1572,94 @@
     },
     {
       "dependsOn": [
+        "CycloneDxRef-Component-weft-abi-0.0.1",
+        "CycloneDxRef-Component-rand_core-0.6.4",
+        "CycloneDxRef-Component-rand_chacha-0.3.1"
+      ],
+      "ref": "CycloneDxRef-Component-weft-net-0.0.1"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-stateright-0.30.2",
+        "CycloneDxRef-Component-weft-replay-0.0.1"
+      ],
+      "ref": "CycloneDxRef-Component-weft-raft-0.0.1"
+    },
+    {
+      "dependsOn": [
         "CycloneDxRef-Component-weft-net-0.0.1",
         "CycloneDxRef-Component-serde-1.0.228",
-        "CycloneDxRef-Component-weft-replay-0.0.1",
-        "CycloneDxRef-Component-weft-abi-0.0.1",
-        "CycloneDxRef-Component-serde_json-1.0.150"
-      ],
-      "ref": "CycloneDxRef-Component-weft-fuzz-0.0.1"
-    },
-    {
-      "dependsOn": [
-        "CycloneDxRef-Component-thiserror-1.0.69",
         "CycloneDxRef-Component-serde_json-1.0.150",
-        "CycloneDxRef-Component-serde-1.0.228"
-      ],
-      "ref": "CycloneDxRef-Component-weft-scenario-0.0.1"
-    },
-    {
-      "dependsOn": [
-        "CycloneDxRef-Component-flate2-1.1.9",
-        "CycloneDxRef-Component-serde_json-1.0.150",
-        "CycloneDxRef-Component-serde-1.0.228",
-        "CycloneDxRef-Component-weft-net-0.0.1"
+        "CycloneDxRef-Component-flate2-1.1.9"
       ],
       "ref": "CycloneDxRef-Component-weft-replay-0.0.1"
     },
     {
       "dependsOn": [
-        "CycloneDxRef-Component-weft-net-0.0.1",
-        "CycloneDxRef-Component-rand_core-0.6.4",
-        "CycloneDxRef-Component-weft-abi-0.0.1",
+        "CycloneDxRef-Component-unicode-ident-1.0.24"
+      ],
+      "ref": "CycloneDxRef-Component-proc-macro2-1.0.106"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-cfg-if-1.0.4",
+        "CycloneDxRef-Component-windows-targets-0.52.6",
+        "CycloneDxRef-Component-libc-0.2.186",
+        "CycloneDxRef-Component-wasi-0.13.3+wasi-0.2.2"
+      ],
+      "ref": "CycloneDxRef-Component-getrandom-0.3.1"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-bitflags-2.13.0"
+      ],
+      "ref": "CycloneDxRef-Component-wit-bindgen-rt-0.33.0"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-proc-macro2-1.0.106",
+        "CycloneDxRef-Component-quote-1.0.46",
+        "CycloneDxRef-Component-syn-2.0.118"
+      ],
+      "ref": "CycloneDxRef-Component-serde_derive-1.0.228"
+    },
+    {
+      "dependsOn": [
         "CycloneDxRef-Component-rand_chacha-0.3.1",
-        "CycloneDxRef-Component-libc-0.2.186"
+        "CycloneDxRef-Component-rand_core-0.6.4",
+        "CycloneDxRef-Component-libc-0.2.186",
+        "CycloneDxRef-Component-weft-abi-0.0.1",
+        "CycloneDxRef-Component-weft-net-0.0.1"
       ],
       "ref": "CycloneDxRef-Component-weft-shim-0.0.1"
     },
     {
       "dependsOn": [
         "CycloneDxRef-Component-itoa-1.0.18",
-        "CycloneDxRef-Component-zmij-1.0.21",
         "CycloneDxRef-Component-serde_core-1.0.228",
         "CycloneDxRef-Component-serde-1.0.228",
-        "CycloneDxRef-Component-memchr-2.8.2"
+        "CycloneDxRef-Component-memchr-2.8.3",
+        "CycloneDxRef-Component-zmij-1.0.21"
       ],
       "ref": "CycloneDxRef-Component-serde_json-1.0.150"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-unicode-ident-1.0.24",
+        "CycloneDxRef-Component-quote-1.0.46",
+        "CycloneDxRef-Component-proc-macro2-1.0.106"
+      ],
+      "ref": "CycloneDxRef-Component-syn-2.0.118"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-smallvec-1.15.2",
+        "CycloneDxRef-Component-libc-0.2.186",
+        "CycloneDxRef-Component-windows-link-0.2.1",
+        "CycloneDxRef-Component-redox_syscall-0.5.18",
+        "CycloneDxRef-Component-cfg-if-1.0.4"
+      ],
+      "ref": "CycloneDxRef-Component-parking_lot_core-0.9.12"
     },
     {
       "dependsOn": [
@@ -860,24 +1670,174 @@
     },
     {
       "dependsOn": [
+        "CycloneDxRef-Component-adler2-2.0.1",
+        "CycloneDxRef-Component-simd-adler32-0.3.9"
+      ],
+      "ref": "CycloneDxRef-Component-miniz_oxide-0.8.9"
+    },
+    {
+      "dependsOn": [
         "CycloneDxRef-Component-proc-macro2-1.0.106",
         "CycloneDxRef-Component-syn-2.0.118",
+        "CycloneDxRef-Component-quote-1.0.46"
+      ],
+      "ref": "CycloneDxRef-Component-zerocopy-derive-0.8.54"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-wit-bindgen-rt-0.33.0"
+      ],
+      "ref": "CycloneDxRef-Component-wasi-0.13.3+wasi-0.2.2"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-getrandom-0.2.17"
+      ],
+      "ref": "CycloneDxRef-Component-rand_core-0.6.4"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-syn-2.0.118",
+        "CycloneDxRef-Component-proc-macro2-1.0.106",
         "CycloneDxRef-Component-quote-1.0.46"
       ],
       "ref": "CycloneDxRef-Component-thiserror-impl-1.0.69"
     },
     {
       "dependsOn": [
-        "CycloneDxRef-Component-unicode-ident-1.0.24"
+        "CycloneDxRef-Component-parking_lot_core-0.9.12",
+        "CycloneDxRef-Component-lock_api-0.4.14"
       ],
-      "ref": "CycloneDxRef-Component-proc-macro2-1.0.106"
+      "ref": "CycloneDxRef-Component-parking_lot-0.12.5"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-weft-replay-0.0.1",
+        "CycloneDxRef-Component-weft-net-0.0.1",
+        "CycloneDxRef-Component-weft-abi-0.0.1",
+        "CycloneDxRef-Component-serde-1.0.228",
+        "CycloneDxRef-Component-serde_json-1.0.150"
+      ],
+      "ref": "CycloneDxRef-Component-weft-fuzz-0.0.1"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-cfg-if-1.0.4",
+        "CycloneDxRef-Component-getrandom-0.3.1",
+        "CycloneDxRef-Component-zerocopy-0.8.54",
+        "CycloneDxRef-Component-once_cell-1.21.4"
+      ],
+      "ref": "CycloneDxRef-Component-ahash-0.8.12"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-scopeguard-1.2.0"
+      ],
+      "ref": "CycloneDxRef-Component-lock_api-0.4.14"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-chunked_transfer-1.5.0",
+        "CycloneDxRef-Component-httpdate-1.0.3",
+        "CycloneDxRef-Component-ascii-1.1.0",
+        "CycloneDxRef-Component-log-0.4.33"
+      ],
+      "ref": "CycloneDxRef-Component-tiny_http-0.12.0"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-windows_i686_msvc-0.52.6",
+        "CycloneDxRef-Component-windows_x86_64_gnu-0.52.6",
+        "CycloneDxRef-Component-windows_i686_gnu-0.52.6",
+        "CycloneDxRef-Component-windows_aarch64_msvc-0.52.6",
+        "CycloneDxRef-Component-windows_i686_gnullvm-0.52.6",
+        "CycloneDxRef-Component-windows_x86_64_gnullvm-0.52.6",
+        "CycloneDxRef-Component-windows_x86_64_msvc-0.52.6",
+        "CycloneDxRef-Component-windows_aarch64_gnullvm-0.52.6"
+      ],
+      "ref": "CycloneDxRef-Component-windows-targets-0.52.6"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-lock_api-0.4.14",
+        "CycloneDxRef-Component-hashbrown-0.14.5",
+        "CycloneDxRef-Component-parking_lot_core-0.9.12",
+        "CycloneDxRef-Component-cfg-if-1.0.4",
+        "CycloneDxRef-Component-once_cell-1.21.4"
+      ],
+      "ref": "CycloneDxRef-Component-dashmap-5.5.3"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-bitflags-2.13.0"
+      ],
+      "ref": "CycloneDxRef-Component-redox_syscall-0.5.18"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-ppv-lite86-0.2.21",
+        "CycloneDxRef-Component-rand_core-0.6.4"
+      ],
+      "ref": "CycloneDxRef-Component-rand_chacha-0.3.1"
     },
     {
       "dependsOn": [
         "CycloneDxRef-Component-rand_core-0.6.4",
-        "CycloneDxRef-Component-ppv-lite86-0.2.21"
+        "CycloneDxRef-Component-libc-0.2.186",
+        "CycloneDxRef-Component-rand_chacha-0.3.1"
       ],
-      "ref": "CycloneDxRef-Component-rand_chacha-0.3.1"
+      "ref": "CycloneDxRef-Component-rand-0.8.6"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-stateright-0.30.2",
+        "CycloneDxRef-Component-weft-replay-0.0.1"
+      ],
+      "ref": "CycloneDxRef-Component-weft-chord-0.0.1"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-cfg-if-1.0.4"
+      ],
+      "ref": "CycloneDxRef-Component-crc32fast-1.5.0"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-serde_json-1.0.150",
+        "CycloneDxRef-Component-libc-0.2.186",
+        "CycloneDxRef-Component-weft-replay-0.0.1",
+        "CycloneDxRef-Component-weft-scenario-0.0.1",
+        "CycloneDxRef-Component-weft-net-0.0.1",
+        "CycloneDxRef-Component-weft-fuzz-0.0.1",
+        "CycloneDxRef-Component-weft-abi-0.0.1"
+      ],
+      "ref": "CycloneDxRef-Component-weft-dst-0.0.1"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-thiserror-1.0.69",
+        "CycloneDxRef-Component-serde-1.0.228",
+        "CycloneDxRef-Component-serde_json-1.0.150"
+      ],
+      "ref": "CycloneDxRef-Component-weft-scenario-0.0.1"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-thiserror-impl-1.0.69"
+      ],
+      "ref": "CycloneDxRef-Component-thiserror-1.0.69"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-zerocopy-0.8.54"
+      ],
+      "ref": "CycloneDxRef-Component-ppv-lite86-0.2.21"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-proc-macro2-1.0.106"
+      ],
+      "ref": "CycloneDxRef-Component-quote-1.0.46"
     }
   ],
   "metadata": {
@@ -895,7 +1855,7 @@
           "externalReferences": [
             {
               "type": "vcs",
-              "url": "https://github.com/weft-dst/weft"
+              "url": "https://github.com/arnavsinghal09/weft"
             }
           ],
           "licenses": [
@@ -914,7 +1874,7 @@
           "externalReferences": [
             {
               "type": "vcs",
-              "url": "https://github.com/weft-dst/weft"
+              "url": "https://github.com/arnavsinghal09/weft"
             }
           ],
           "licenses": [
@@ -933,7 +1893,7 @@
           "externalReferences": [
             {
               "type": "vcs",
-              "url": "https://github.com/weft-dst/weft"
+              "url": "https://github.com/arnavsinghal09/weft"
             }
           ],
           "licenses": [
@@ -952,7 +1912,7 @@
           "externalReferences": [
             {
               "type": "vcs",
-              "url": "https://github.com/weft-dst/weft"
+              "url": "https://github.com/arnavsinghal09/weft"
             }
           ],
           "licenses": [
@@ -971,7 +1931,7 @@
           "externalReferences": [
             {
               "type": "vcs",
-              "url": "https://github.com/weft-dst/weft"
+              "url": "https://github.com/arnavsinghal09/weft"
             }
           ],
           "licenses": [
@@ -990,7 +1950,7 @@
           "externalReferences": [
             {
               "type": "vcs",
-              "url": "https://github.com/weft-dst/weft"
+              "url": "https://github.com/arnavsinghal09/weft"
             }
           ],
           "licenses": [
@@ -1009,7 +1969,7 @@
           "externalReferences": [
             {
               "type": "vcs",
-              "url": "https://github.com/weft-dst/weft"
+              "url": "https://github.com/arnavsinghal09/weft"
             }
           ],
           "licenses": [
@@ -1028,7 +1988,7 @@
           "externalReferences": [
             {
               "type": "vcs",
-              "url": "https://github.com/weft-dst/weft"
+              "url": "https://github.com/arnavsinghal09/weft"
             }
           ],
           "licenses": [
@@ -1047,7 +2007,7 @@
           "externalReferences": [
             {
               "type": "vcs",
-              "url": "https://github.com/weft-dst/weft"
+              "url": "https://github.com/arnavsinghal09/weft"
             }
           ],
           "licenses": [
@@ -1063,7 +2023,7 @@
       "name": "weft-dst-app",
       "type": "application"
     },
-    "timestamp": "2026-07-09T14:36:05.717Z",
+    "timestamp": "2026-07-11T16:50:28.065Z",
     "tools": [
       {
         "name": "cargo-sbom",
@@ -1071,7 +2031,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:6512926e-1c46-4474-a593-5caa18100a87",
-  "specVersion": "1.4",
+  "serialNumber": "urn:uuid:66f509d1-3a90-4a88-b641-625c6cf93eea",
+  "specVersion": "1.6",
   "version": 1
 }
