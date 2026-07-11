@@ -1,0 +1,54 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Weft: Deterministic Simulation Testing for Unmodified Linux Binaries"
+abstract: >-
+  Weft is an open-source deterministic simulation testing (DST) framework
+  that intercepts the nondeterministic surface (time, randomness, thread
+  scheduling, network, file I/O) of unmodified, dynamically linked Linux
+  binaries at the libc boundary via LD_PRELOAD, without requiring the
+  target to be rewritten against a special runtime. A single seed
+  determines an entire run; failing seeds are permanent, byte-for-byte
+  replayable recordings. Validated against published, independently
+  documented protocol bugs in Chord (Zave, 2012) and Raft (Ongaro, 2014).
+type: software
+license:
+  - MIT
+  - Apache-2.0
+repository-code: "https://github.com/weft-dst/weft"
+url: "https://github.com/weft-dst/weft"
+authors:
+  - name: "Weft contributors"
+keywords:
+  - deterministic-simulation-testing
+  - distributed-systems
+  - fault-injection
+  - fuzzing
+  - LD_PRELOAD
+  - testing
+identifiers:
+  - type: url
+    value: "https://github.com/weft-dst/weft"
+    description: Source repository
+references:
+  - type: thesis
+    title: "Consensus: Bridging Theory and Practice"
+    authors:
+      - family-names: Ongaro
+        given-names: Diego
+    year: 2014
+    institution:
+      name: Stanford University
+    notes: >-
+      ElectionSafety edge case (Fig. 3.2) reproduced by the Raft case study;
+      see docs/case-study/RAFT_VALIDATION.md.
+  - type: article
+    title: "How to Not Prove Your Distributed Algorithm"
+    authors:
+      - family-names: Zave
+        given-names: Pamela
+    year: 2012
+    journal: "ACM SIGCOMM Computer Communication Review"
+    notes: >-
+      Formal proof of the Chord (2001) stabilization protocol's
+      ring-connectivity flaw, dynamically rediscovered by the Chord case
+      study; see docs/case-study/CREDIBILITY_SUMMARY.md.
