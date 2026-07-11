@@ -19,12 +19,42 @@ impl<const N: usize> fmt::Write for StackBuf<N> {
 }
 
 fn write_fd2(bytes: &[u8]) {
-    #[cfg(unix)]
+    // The raw syscall, NOT `libc::write`: the shim exports its own `write`
+    // symbol, so `libc::write` from inside the shim resolves back into the
+    // interposed hook. That hook calls `state::shim()`, and a trace emitted
+    // *during* state initialization (e.g. from an ld.so constructor) would
+    // then re-enter the initializing `OnceLock` and self-deadlock. Going
+    // straight to the kernel also keeps trace bytes out of the hook's
+    // ENOSPC byte accounting, so tracing can never perturb fault injection.
+    #[cfg(target_os = "linux")]
     {
         let mut off = 0;
         while off < bytes.len() {
             // SAFETY: fd 2 write with an in-bounds pointer/length pair; we
             // handle short writes and ignore errors (tracing is best-effort).
+            let n = unsafe {
+                libc::syscall(
+                    libc::SYS_write,
+                    2,
+                    bytes.as_ptr().add(off),
+                    bytes.len() - off,
+                )
+            };
+            if n <= 0 {
+                return;
+            }
+            #[allow(clippy::cast_sign_loss)] // n > 0 checked above
+            {
+                off += n as usize;
+            }
+        }
+    }
+    #[cfg(all(unix, not(target_os = "linux")))]
+    {
+        let mut off = 0;
+        while off < bytes.len() {
+            // SAFETY: as above; non-Linux builds have no interposed `write`,
+            // so plain libc::write is safe here.
             let n = unsafe { libc::write(2, bytes.as_ptr().add(off).cast(), bytes.len() - off) };
             if n <= 0 {
                 return;
