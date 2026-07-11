@@ -15,6 +15,11 @@ mkdir -p "$EX"
 
 echo "[bench] build (release)…"
 cargo build --release --workspace 2>&1 | tail -1
+# Section C needs GNU time (-v) for max-RSS; rust:*-bookworm ships without it.
+if ! command -v /usr/bin/time >/dev/null; then
+    { apt-get update -qq && apt-get install -y -qq time; } >/dev/null 2>&1 \
+        || echo "[bench] WARN: could not install GNU time; section C RSS will be empty"
+fi
 for ex in chrono montecarlo entropy udpbench pingpong; do
     cc -O2 -o "$EX/$ex" "examples/$ex.c" -lpthread
 done
@@ -41,6 +46,8 @@ for ex in chrono montecarlo entropy; do
     if (( native > 0 )); then pct="$(( (weft - native) * 100 / native ))%"; else pct="n/a(<1ms)"; fi
     printf "%-12s %10s %10s %10s\n" "$ex" "$native" "$weft" "$pct"
 done
+echo "note: chrono sleeps ~2.8s natively; the shim virtualizes sleeps (they return"
+echo "      instantly), so its row measures time acceleration, not overhead."
 
 echo
 echo "== B. broker datagram RTT (udpbench: 5000 round trips = 10000 broker ops) =="
