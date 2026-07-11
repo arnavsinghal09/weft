@@ -1,3 +1,43 @@
+# Phase 7 Extended Validation — COMPLETE
+
+## Session 3: Final Documentation & Validation (COMPLETE)
+
+### Deliverables
+
+✓ **docs/case-study/LEVEL_2_RESULTS.md** — Chord falsification with arc 57→41→8 violations, root causes, and minimal reproducers.
+
+✓ **docs/case-study/RAFT_VALIDATION.md** — Raft ElectionSafety edge case (Ongaro Fig 3.2), 3/300 buggy vs 0/300 fixed, reproduced.
+
+✓ **docs/PHASE_VERIFICATION.md** — Reverification of Phases 1–6: seed determinism, race detection, message ordering, replay identity, parser robustness, sanitizers.
+
+✓ **docs/SCALABILITY.md** — Measured shim overhead (70–100%), broker latency (125 µs/op), recording size (0.65 MB/seed), shrinking efficiency (1:800–2000×).
+
+✓ **docs/SCALABILITY_RECOMMENDATIONS.md** — Five Phase 8+ optimizations: broker histograms, parallel sharding, log compaction, per-node clocks, shrinking parallelization.
+
+✓ **docs/case-study/CREDIBILITY_SUMMARY.md** — Publication-ready claim→evidence→threats→reproducibility assessment covering Chord, Raft, honest limits, and phases 1–6.
+
+### Verification Status
+
+- ✓ Chord level-0/1/2 experiment complete; documented as Branch A (real flaw) + Branch B (detection-latency tail).
+- ✓ Raft one known edge case complete; reproduced Ongaro dissertation invariant.
+- ✓ Phases 1–6 spot-checked and verified (all unit tests green, determinism holds, replay identical ×10, parser robust).
+- ✓ Sanitizers clean (ASan/UBSan passing; TSan positive control working).
+- ✓ No unsupported claims; all limitations documented.
+
+### Phase 7 Extended Status
+
+**COMPLETE** — All 8 steps delivered:
+1. ✓ Reload state (GRAPH_REPORT via prior graphify).
+2. ✓ Chord level-2 experiment (LEVEL_2_RESULTS.md).
+3. ✓ Raft one edge case (RAFT_VALIDATION.md).
+4. ✓ Reverify phases 1–6 (PHASE_VERIFICATION.md).
+5. ✓ Scalability measurements (SCALABILITY.md).
+6. ✓ Scalability recommendations (SCALABILITY_RECOMMENDATIONS.md).
+7. ✓ Credibility summary (CREDIBILITY_SUMMARY.md).
+8. ✓ Final graphify refresh (`--update --no-viz`): 950 nodes / 2088 edges / 54 communities; 301 stale ghost nodes (obsolete full-path IDs, no source_file) pruned, 105 new nodes added from Phase 7 code + docs.
+
+---
+
 # Phase 7 progress (checkpoint before /compact)
 
 ## Done
