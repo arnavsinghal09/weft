@@ -436,6 +436,9 @@ impl Model for ChordModel {
     }
 
     #[allow(clippy::cast_possible_truncation)]
+    // `s`/`a` (state/action) are the naming idiom of stateright's Model
+    // trait, used consistently across this file's other trait methods.
+    #[allow(clippy::many_single_char_names)]
     fn next_state(&self, s: &Self::State, a: Self::Action) -> Option<Self::State> {
         let mut ns = s.clone();
         match a {
