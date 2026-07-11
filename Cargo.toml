@@ -5,11 +5,9 @@ members = ["crates/weft-dst", "crates/weft-abi", "crates/weft-shim", "crates/wef
 [workspace.dependencies]
 weft-abi = { path = "crates/weft-abi", version = "0.0.1" }
 weft-net = { path = "crates/weft-net", version = "0.0.1" }
-weft-scenario = { path = "crates/weft-scenario", version = "0.1.0" }
+weft-scenario = { path = "crates/weft-scenario", version = "0.0.1" }
 weft-replay = { path = "crates/weft-replay", version = "0.0.1" }
 weft-fuzz = { path = "crates/weft-fuzz", version = "0.0.1" }
-weft-chord = { path = "crates/weft-chord", version = "0.0.1" }
-weft-raft = { path = "crates/weft-raft", version = "0.0.1" }
 libc = "0.2"
 rand_chacha = { version = "0.3", default-features = false }
 rand_core = { version = "0.6", default-features = false }

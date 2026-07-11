@@ -1,12 +1,20 @@
 [package]
 name = "weft-scenario"
-version = "0.1.0"
-edition = "2021"
+description = "Fault-scenario DSL (JSON) parsing and validation for the Weft DST framework"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
+
+[lints]
+workspace = true
 
 [[test]]
 name = "scenario_parser"
