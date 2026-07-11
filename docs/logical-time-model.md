@@ -136,51 +136,33 @@ Without fsync-lies or without crash: bug never manifests.
 
 ## Scenario DSL (Phase 4)
 
-Timed fault event sequences are written in a scenario configuration:
+Timed fault event sequences are written in a JSON scenario configuration
+(the implemented format — see `examples/scenarios/` for runnable files):
 
-```yaml
-scenario: "file-sync-reordering"
-description: "Replica divergence when fsync lies and network reorders"
-
-faults:
-  network:
-    - latency: uniform:100-10000
-    - loss: 0.2
-  
-  filesystem:
-    - node_0:
-        fsync_lies: true
-        enospc_after_bytes: null
-        
-processes:
-  - node_id: 0
-    program: "./target"
-    args: ["--role=writer"]
-    
-  - node_id: 1
-    program: "./target"
-    args: ["--role=replica"]
-
-time_skew:
-  # Per-node offset from the global timeline
-  node_0: 0ns
-  node_1: 0ns
-
-events:
-  # Scheduled crashes and restarts
-  - time: 1ms
-    action: crash
-    node: 0
-  - time: 2ms
-    action: start
-    node: 0
+```json
+{
+  "name": "file-sync-reordering",
+  "description": "Replica divergence when fsync lies and network reorders",
+  "seed": 42,
+  "nodes": [
+    {"node_id": 0, "program": "./target", "args": ["--role=writer"]},
+    {"node_id": 1, "program": "./target", "args": ["--role=replica"]}
+  ],
+  "network": { "latency": "uniform:100-10000", "loss": 0.2 },
+  "filesystem": {
+    "0": { "fsync_lies": true, "enospc_after_bytes": null }
+  },
+  "time_skew": {},
+  "events": [
+    { "time_ns": 1000000, "action": { "type": "crash", "node_id": 0 } },
+    { "time_ns": 2000000, "action": { "type": "start", "node_id": 0 } }
+  ]
+}
 ```
-
-This is the DSL we will design and validate.
 
 ## Validation and Testing (Phase 4)
 
-1. **Parser property tests:** generated scenario YAML (valid and deliberately malformed) never panics; parse always returns `Result<Scenario, ParseError>`.
+1. **Parser property tests:** generated scenario JSON (valid and deliberately malformed) never panics; parse always returns `Result<Scenario, ParseError>`.
 2. **Per-fault-type isolation:** each fault type (network loss, fsync-lies, ENOSPC, crash) is tested in isolation with a minimal scenario.
 3. **Multi-fault interaction:** at least one scenario demonstrates a bug that manifests **only** when two or more fault types are active together.
 
