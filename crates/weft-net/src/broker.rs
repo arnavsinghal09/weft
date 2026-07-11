@@ -23,7 +23,9 @@
 //! a faithful, replayable capture of the run. See docs/recording-format.md.
 
 use std::io;
-use std::os::unix::net::{UnixListener, UnixStream};
+use std::io::{Read, Write};
+use std::net::{TcpListener, ToSocketAddrs};
+use std::os::unix::net::UnixListener;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
@@ -77,6 +79,19 @@ pub type Observer = Box<dyn FnMut(u64, Observed<'_>) + Send>;
 struct State {
     core: Core,
     observer: Option<Observer>,
+    /// Largest |request local_vt - core vt| seen across all operations —
+    /// the measured clock-skew bound (docs/MULTI_HOST_ARCHITECTURE.md).
+    max_skew_ns: u64,
+}
+
+impl State {
+    fn track_skew(&mut self, local_vt: u64) {
+        // local_vt == 0 means a clock-less caller (tests, old shims): skip.
+        if local_vt > 0 {
+            let skew = local_vt.abs_diff(self.core.vt());
+            self.max_skew_ns = self.max_skew_ns.max(skew);
+        }
+    }
 }
 
 impl State {
@@ -87,9 +102,17 @@ impl State {
     }
 }
 
+/// The broker's accept source: Unix socket (single-host) or TCP
+/// (multi-host). Same wire protocol, same handler, same determinism —
+/// transport carries the linearization, it never defines it.
+enum Listener {
+    Unix(UnixListener),
+    Tcp(TcpListener),
+}
+
 /// A running broker. Clone-free; share via the `Arc` inside.
 pub struct Broker {
-    listener: UnixListener,
+    listener: Listener,
     shared: Arc<(Mutex<State>, Condvar)>,
     /// Global logical time (nanoseconds) for process orchestration.
     /// Updated as messages are delivered. Used by event scheduler to trigger
@@ -116,18 +139,55 @@ impl Broker {
         model: FaultModel,
         observer: Option<Observer>,
     ) -> io::Result<Self> {
-        let listener = UnixListener::bind(path)?;
+        let listener = Listener::Unix(UnixListener::bind(path)?);
         Ok(Self {
             listener,
             shared: Arc::new((
                 Mutex::new(State {
                     core: Core::new(model),
                     observer,
+                    max_skew_ns: 0,
                 }),
                 Condvar::new(),
             )),
             global_logical_time: Arc::new(AtomicU64::new(0)),
         })
+    }
+
+    /// Bind the broker to a TCP address for multi-host runs. Identical
+    /// semantics to [`Broker::bind_with`]; only the transport differs.
+    ///
+    /// # Errors
+    /// Propagates the bind error.
+    pub fn bind_tcp(
+        addr: impl ToSocketAddrs,
+        model: FaultModel,
+        observer: Option<Observer>,
+    ) -> io::Result<Self> {
+        let listener = Listener::Tcp(TcpListener::bind(addr)?);
+        Ok(Self {
+            listener,
+            shared: Arc::new((
+                Mutex::new(State {
+                    core: Core::new(model),
+                    observer,
+                    max_skew_ns: 0,
+                }),
+                Condvar::new(),
+            )),
+            global_logical_time: Arc::new(AtomicU64::new(0)),
+        })
+    }
+
+    /// The TCP address actually bound (for port-0 binds in tests).
+    ///
+    /// # Errors
+    /// Fails when the broker is on a Unix socket.
+    pub fn tcp_addr(&self) -> io::Result<std::net::SocketAddr> {
+        match &self.listener {
+            Listener::Tcp(l) => l.local_addr(),
+            Listener::Unix(_) => Err(io::Error::other("broker is on a unix socket")),
+        }
     }
 
     /// Accept and serve connections until the listener errors (e.g. is closed
@@ -138,9 +198,24 @@ impl Broker {
     /// Panics if the state lock is poisoned, which cannot happen: no holder
     /// performs a panicking operation.
     pub fn run(&self) {
-        for (id, stream) in self.listener.incoming().enumerate() {
-            let Ok(stream) = stream else { break };
-            let id = id as u64;
+        let mut next_id = 0u64;
+        loop {
+            // Accept from whichever transport this broker was bound on.
+            let stream: Box<dyn StreamPair> = match &self.listener {
+                Listener::Unix(l) => match l.accept() {
+                    Ok((s, _)) => Box::new(s),
+                    Err(_) => break,
+                },
+                Listener::Tcp(l) => match l.accept() {
+                    Ok((s, _)) => {
+                        let _ = s.set_nodelay(true);
+                        Box::new(s)
+                    }
+                    Err(_) => break,
+                },
+            };
+            let id = next_id;
+            next_id += 1;
             {
                 let mut st = self.shared.0.lock().unwrap();
                 st.core.connect(id);
@@ -161,15 +236,43 @@ impl Broker {
     pub fn stats(&self) -> (u64, u64) {
         self.shared.0.lock().unwrap().core.stats()
     }
+
+    /// Largest observed |node local virtual time - broker logical time|
+    /// across all operations that carried a local clock (ns).
+    ///
+    /// # Panics
+    ///
+    /// Same non-condition as [`Self::run`].
+    #[must_use]
+    pub fn max_skew_ns(&self) -> u64 {
+        self.shared.0.lock().unwrap().max_skew_ns
+    }
+}
+
+/// A duplexable byte stream: both halves of the shim connection.
+trait StreamPair: Read + Write + Send {
+    fn try_clone_reader(&self) -> io::Result<Box<dyn Read + Send>>;
+}
+
+impl StreamPair for std::os::unix::net::UnixStream {
+    fn try_clone_reader(&self) -> io::Result<Box<dyn Read + Send>> {
+        Ok(Box::new(self.try_clone()?))
+    }
+}
+
+impl StreamPair for std::net::TcpStream {
+    fn try_clone_reader(&self) -> io::Result<Box<dyn Read + Send>> {
+        Ok(Box::new(self.try_clone()?))
+    }
 }
 
 fn handle_conn(
     id: u64,
-    stream: UnixStream,
+    stream: Box<dyn StreamPair>,
     shared: &Arc<(Mutex<State>, Condvar)>,
     global_time: &Arc<AtomicU64>,
 ) {
-    let mut reader = io::BufReader::new(stream.try_clone().expect("dup unix stream"));
+    let mut reader = io::BufReader::new(stream.try_clone_reader().expect("dup stream"));
     let mut writer = stream;
 
     // Serve until EOF or a protocol error ends the connection.
@@ -178,25 +281,39 @@ fn handle_conn(
             ToBroker::Hello { node_id } => {
                 // No state change, but the identity is recorded in linear
                 // order so a log names its participants.
-                shared.0.lock().unwrap().observe(Observed::Hello {
-                    conn: id,
-                    node: node_id,
-                });
-                let _ = write_from_broker(&mut writer, &FromBroker::Ack);
+                let vt = {
+                    let mut st = shared.0.lock().unwrap();
+                    st.observe(Observed::Hello {
+                        conn: id,
+                        node: node_id,
+                    });
+                    st.core.vt()
+                };
+                let _ = write_from_broker(&mut writer, &FromBroker::Ack { vt });
             }
             ToBroker::Bind { addr } => {
                 let mut st = shared.0.lock().unwrap();
                 st.core.bind(id, addr);
                 st.observe(Observed::Bind { conn: id, addr });
+                let vt = st.core.vt();
                 drop(st);
-                let _ = write_from_broker(&mut writer, &FromBroker::Ack);
+                let _ = write_from_broker(&mut writer, &FromBroker::Ack { vt });
             }
-            ToBroker::Send { src, dst, payload } => {
-                route_send(shared, global_time, id, src, dst, &payload);
-                let _ = write_from_broker(&mut writer, &FromBroker::Ack);
+            ToBroker::Send {
+                src,
+                dst,
+                payload,
+                local_vt,
+            } => {
+                let vt = route_send(shared, global_time, id, src, dst, &payload, local_vt);
+                let _ = write_from_broker(&mut writer, &FromBroker::Ack { vt });
             }
-            ToBroker::Recv { addr: _, blocking } => {
-                let out = recv_next(shared, id, blocking);
+            ToBroker::Recv {
+                addr: _,
+                blocking,
+                local_vt,
+            } => {
+                let out = recv_next(shared, id, blocking, local_vt);
                 let _ = write_from_broker(&mut writer, &out);
             }
         }
@@ -218,9 +335,11 @@ fn route_send(
     src: VAddr,
     dst: VAddr,
     payload: &[u8],
-) {
+    local_vt: u64,
+) -> u64 {
     let (lock, cvar) = &**shared;
     let mut st = lock.lock().unwrap();
+    st.track_skew(local_vt);
     let (chan_seq, result) = st.core.send(src, dst, payload);
     // Publish the logical clock's high-water mark for the orchestrator.
     // fetch_max keeps it monotonic even if callers ever race here.
@@ -236,11 +355,18 @@ fn route_send(
     if matches!(result, SendResult::Enqueued { .. }) {
         cvar.notify_all();
     }
+    st.core.vt()
 }
 
-fn recv_next(shared: &Arc<(Mutex<State>, Condvar)>, id: u64, blocking: bool) -> FromBroker {
+fn recv_next(
+    shared: &Arc<(Mutex<State>, Condvar)>,
+    id: u64,
+    blocking: bool,
+    local_vt: u64,
+) -> FromBroker {
     let (lock, cvar) = &**shared;
     let mut st = lock.lock().unwrap();
+    st.track_skew(local_vt);
     loop {
         let result = st.core.recv(id);
         match &result {
@@ -251,6 +377,7 @@ fn recv_next(shared: &Arc<(Mutex<State>, Condvar)>, id: u64, blocking: bool) -> 
                     src: *src,
                     dst: *dst,
                     payload: payload.clone(),
+                    vt: st.core.vt(),
                 };
                 st.observe(Observed::Recv {
                     conn: id,
@@ -266,7 +393,7 @@ fn recv_next(shared: &Arc<(Mutex<State>, Condvar)>, id: u64, blocking: bool) -> 
                         blocking,
                         result: &result,
                     });
-                    return FromBroker::Empty;
+                    return FromBroker::Empty { vt: st.core.vt() };
                 }
             }
         }

@@ -47,30 +47,40 @@ pub enum ToBroker {
     Hello { node_id: u32 },
     /// Claim `addr` as this connection's receive address (a `bind`).
     Bind { addr: VAddr },
-    /// Send a datagram.
+    /// Send a datagram. `local_vt` is the sender's current local virtual
+    /// time (ns), carried for broker-side clock-skew observability
+    /// (docs/MULTI_HOST_ARCHITECTURE.md).
     Send {
         src: VAddr,
         dst: VAddr,
         payload: Vec<u8>,
+        local_vt: u64,
     },
     /// Ask for the next datagram delivered to `addr`. `blocking` requests that
     /// the broker hold the request until one is available (vs. answer `Empty`).
-    Recv { addr: VAddr, blocking: bool },
+    Recv {
+        addr: VAddr,
+        blocking: bool,
+        local_vt: u64,
+    },
 }
 
 /// Messages the broker sends back to a node's shim.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum FromBroker {
-    /// Acknowledges `Hello`/`Bind`/`Send`.
-    Ack,
+    /// Acknowledges `Hello`/`Bind`/`Send`. `vt` is the broker's logical
+    /// clock (virtual-time high-water mark, ns); shims merge it into their
+    /// local clock with a monotone max (the multi-host clock protocol).
+    Ack { vt: u64 },
     /// A delivered datagram.
     Deliver {
         src: VAddr,
         dst: VAddr,
         payload: Vec<u8>,
+        vt: u64,
     },
     /// No datagram was available for a non-blocking `Recv`.
-    Empty,
+    Empty { vt: u64 },
 }
 
 // --- encoding primitives -------------------------------------------------
@@ -79,6 +89,9 @@ fn put_u16(buf: &mut Vec<u8>, v: u16) {
     buf.extend_from_slice(&v.to_le_bytes());
 }
 fn put_u32(buf: &mut Vec<u8>, v: u32) {
+    buf.extend_from_slice(&v.to_le_bytes());
+}
+fn put_u64(buf: &mut Vec<u8>, v: u64) {
     buf.extend_from_slice(&v.to_le_bytes());
 }
 fn put_addr(buf: &mut Vec<u8>, a: VAddr) {
@@ -106,6 +119,9 @@ impl<'a> Cur<'a> {
     fn u32(&mut self) -> Option<u32> {
         Some(u32::from_le_bytes(self.take(4)?.try_into().ok()?))
     }
+    fn u64(&mut self) -> Option<u64> {
+        Some(u64::from_le_bytes(self.take(8)?.try_into().ok()?))
+    }
     fn addr(&mut self) -> Option<VAddr> {
         Some(VAddr::new(self.u32()?, self.u16()?))
     }
@@ -128,16 +144,27 @@ impl ToBroker {
                 b.push(2);
                 put_addr(&mut b, *addr);
             }
-            Self::Send { src, dst, payload } => {
+            Self::Send {
+                src,
+                dst,
+                payload,
+                local_vt,
+            } => {
                 b.push(3);
                 put_addr(&mut b, *src);
                 put_addr(&mut b, *dst);
                 put_bytes(&mut b, payload);
+                put_u64(&mut b, *local_vt);
             }
-            Self::Recv { addr, blocking } => {
+            Self::Recv {
+                addr,
+                blocking,
+                local_vt,
+            } => {
                 b.push(4);
                 put_addr(&mut b, *addr);
                 b.push(u8::from(*blocking));
+                put_u64(&mut b, *local_vt);
             }
         }
         b
@@ -153,10 +180,12 @@ impl ToBroker {
                 src: c.addr()?,
                 dst: c.addr()?,
                 payload: c.bytes()?,
+                local_vt: c.u64()?,
             },
             4 => Self::Recv {
                 addr: c.addr()?,
                 blocking: c.take(1)?[0] != 0,
+                local_vt: c.u64()?,
             },
             _ => return None,
         })
@@ -168,14 +197,26 @@ impl FromBroker {
     pub fn encode(&self) -> Vec<u8> {
         let mut b = Vec::new();
         match self {
-            Self::Ack => b.push(1),
-            Self::Deliver { src, dst, payload } => {
+            Self::Ack { vt } => {
+                b.push(1);
+                put_u64(&mut b, *vt);
+            }
+            Self::Deliver {
+                src,
+                dst,
+                payload,
+                vt,
+            } => {
                 b.push(2);
                 put_addr(&mut b, *src);
                 put_addr(&mut b, *dst);
                 put_bytes(&mut b, payload);
+                put_u64(&mut b, *vt);
             }
-            Self::Empty => b.push(3),
+            Self::Empty { vt } => {
+                b.push(3);
+                put_u64(&mut b, *vt);
+            }
         }
         b
     }
@@ -184,13 +225,14 @@ impl FromBroker {
     pub fn decode(buf: &[u8]) -> Option<Self> {
         let mut c = Cur { b: buf, i: 0 };
         Some(match c.take(1)?[0] {
-            1 => Self::Ack,
+            1 => Self::Ack { vt: c.u64()? },
             2 => Self::Deliver {
                 src: c.addr()?,
                 dst: c.addr()?,
                 payload: c.bytes()?,
+                vt: c.u64()?,
             },
-            3 => Self::Empty,
+            3 => Self::Empty { vt: c.u64()? },
             _ => return None,
         })
     }
