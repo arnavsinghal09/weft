@@ -542,7 +542,9 @@ mod tests {
         ]);
         assert_eq!(s.ring_members(), vec![10, 30, 40, 50]);
         let v = s.check(6);
-        assert!(v.iter().any(|x| x.invariant == InvariantKind::AtMostOneRing));
+        assert!(v
+            .iter()
+            .any(|x| x.invariant == InvariantKind::AtMostOneRing));
     }
 
     #[test]
