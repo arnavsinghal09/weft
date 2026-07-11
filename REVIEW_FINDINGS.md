@@ -2,9 +2,17 @@
 
 Skeptical, adversarial pass over the entire public-facing surface of Weft,
 conducted 2026-07-11, as a technically-hostile stranger would read it. Every
-finding cites its file and quotes the offending text where relevant. Nothing
-here has been fixed — this document is the input to a human decision about
-what to act on.
+finding cites its file and quotes the offending text where relevant.
+
+**Disposition (2026-07-11, same day):** all six BLOCKING findings and the
+SHOULD-FIX items 1.2–1.4, 2.2–2.5, 3.3–3.5, 4.2–4.6, 5.2–5.3 have been
+fixed in the tree; quoted "offending text" below therefore no longer
+matches the current files — this document is kept as the record of what
+the review found. 3.1 is resolved as documentation (per-level semantics
+table + transcription caveat in LEVEL_2_RESULTS.md/chord-spec.md) rather
+than a code change; re-verifying update()'s semantics against the paper
+text and re-running the campaign remains open. 6.2 (repo security
+settings) requires access this session did not have.
 
 Rankings: **BLOCKING** = must fix before any public launch. **SHOULD-FIX** =
 meaningfully improves credibility. **MINOR** = polish.
