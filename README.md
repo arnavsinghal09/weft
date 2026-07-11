@@ -6,10 +6,14 @@ Point it at a compiled Linux binary — no rewrite, no SDK, no special
 runtime — and one 64-bit seed determines every clock read, every random
 byte, and every thread interleaving in that process; with a simulated
 network, every message's latency, loss, and partition fate is a pure
-function of the seed too. Record a run and it replays byte-for-byte,
-forever, on any platform — a failing seed becomes a permanent, portable bug
-report. `weft fuzz` finds those seeds automatically and shrinks each one
-down to the smallest sequence of operations that still reproduces it.
+function of the seed too. Record a run and it replays byte-for-byte on any
+platform Rust runs — a failing seed becomes a permanent, portable bug
+report. `weft fuzz` sweeps thousands of fault seeds against invariant
+checks and shrinks every violation to a minimal (1-minimal, not provably
+smallest) reproducer. Its built-in workload exercises the framework's own
+network core; seed campaigns against *your* binary are scripted today, not
+one-command — see [docs/fuzzing.md](docs/fuzzing.md) and the Chord campaign
+scripts for the pattern.
 
 One honest caveat up front, not buried in the docs: in a live multi-process
 run, which process's message reaches the simulated network first is
@@ -19,10 +23,14 @@ always. Details: [LIMITATIONS.md](LIMITATIONS.md) §3.
 
 Weft is in the tradition of
 [FoundationDB's simulator](https://apple.github.io/foundationdb/testing.html)
-and [Antithesis](https://antithesis.com/) — but general-purpose, retrofit
-onto binaries you already have rather than a runtime you build against from
-day one. The name comes from weaving: the *weft* is the crosswise thread
-carried through the warp to make fabric.
+and [Antithesis](https://antithesis.com/). Unlike sim-first designs
+(FoundationDB, TigerBeetle) it retrofits onto binaries you already have.
+Antithesis also runs unmodified software — at the hypervisor level, as a
+commercial platform; Weft is open source, self-hosted, and intercepts at
+the libc boundary, with the narrower coverage that implies
+([docs/comparison.md](docs/comparison.md) states the trade-offs in both
+directions). The name comes from weaving: the *weft* is the crosswise
+thread carried through the warp to make fabric.
 
 > **Status: working, pre-1.0.** Interception, deterministic scheduling,
 > simulated network, fault injection, record/replay, and fuzzing with
@@ -33,8 +41,13 @@ carried through the warp to make fabric.
 
 ## See it work
 
+From a checkout (`git clone https://github.com/arnavsinghal09/weft && cd
+weft`), with the `weft` binary and shim built and on PATH per
+[Install](#install) below, and a C compiler present:
+
 ```console
 $ cc -O2 -o /tmp/chrono examples/chrono.c
+$ cc -O2 -o /tmp/race_bank examples/race_bank.c -lpthread
 $ weft run --seed 42 -- /tmp/chrono | tail -1
 total virtual elapsed: 2800026 us, c11 time 962138923
 
@@ -61,7 +74,10 @@ fault, a recorded/replayed run, and the fuzzer, is in the
 
 ## Install
 
+From a clone (not yet published to crates.io):
+
 ```sh
+git clone https://github.com/arnavsinghal09/weft && cd weft
 cargo install --path crates/weft-dst     # the `weft` binary
 cargo build --release -p weft-shim       # libweft_shim.so (Linux only)
 ```
@@ -81,10 +97,12 @@ recipe.
 
 ## What it found
 
-Pointed at an unmodified C implementation of **Chord** (SIGCOMM 2001), Weft
-dynamically rediscovered the ring-connectivity flaw Zave proved formally in
-2012: 57 of 500 seeded runs break the ring under the original protocol,
-falling to 8/500 once published liveness fixes are applied. Pointed at a
+Pointed at our own minimal, uninstrumented C implementation of the 2001
+**Chord** protocol (~300 lines; it knows nothing about Weft), Weft
+dynamically rediscovered the ring-maintenance flaw Zave proved formally in
+2012: 57 of 500 seeded runs violate her correctness-critical invariants
+under the original protocol rules (55 broken rings, 2 permanently stranded
+appendages), falling to 8 once published liveness fixes are applied. Pointed at a
 minimal **Raft** leader-election implementation, it reproduced the
 dissertation's votedFor-persistence edge case — 3 of 300 runs elect two
 leaders in the same term when vote state isn't persisted across a crash
