@@ -316,23 +316,26 @@ mod tests {
                 src: a,
                 dst: b,
                 payload: vec![1, 2, 3, 255],
+                local_vt: 42,
             },
             ToBroker::Recv {
                 addr: a,
                 blocking: true,
+                local_vt: 7,
             },
         ];
         for m in tb {
             assert_eq!(ToBroker::decode(&m.encode()), Some(m));
         }
         let fb = [
-            FromBroker::Ack,
+            FromBroker::Ack { vt: 1 },
             FromBroker::Deliver {
                 src: a,
                 dst: b,
                 payload: vec![9, 8, 7],
+                vt: 99,
             },
-            FromBroker::Empty,
+            FromBroker::Empty { vt: 100 },
         ];
         for m in fb {
             assert_eq!(FromBroker::decode(&m.encode()), Some(m));
@@ -346,6 +349,7 @@ mod tests {
             src: VAddr::new(1, 2),
             dst: VAddr::new(3, 4),
             payload: b"hello world".to_vec(),
+            local_vt: 0,
         };
         write_to_broker(&mut buf, &m).unwrap();
         let mut cur = std::io::Cursor::new(buf);

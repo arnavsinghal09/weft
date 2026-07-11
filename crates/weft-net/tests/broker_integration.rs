@@ -15,7 +15,10 @@ struct Client(UnixStream);
 impl Client {
     fn connect(path: &PathBuf, node: u32) -> Self {
         let mut c = Self(UnixStream::connect(path).unwrap());
-        assert_eq!(c.call(&ToBroker::Hello { node_id: node }), FromBroker::Ack);
+        assert!(matches!(
+            c.call(&ToBroker::Hello { node_id: node }),
+            FromBroker::Ack { .. }
+        ));
         c
     }
     fn call(&mut self, m: &ToBroker) -> FromBroker {
@@ -23,25 +26,30 @@ impl Client {
         read_from_broker(&mut self.0).unwrap()
     }
     fn bind(&mut self, addr: VAddr) {
-        assert_eq!(self.call(&ToBroker::Bind { addr }), FromBroker::Ack);
+        assert!(matches!(
+            self.call(&ToBroker::Bind { addr }),
+            FromBroker::Ack { .. }
+        ));
     }
     fn send(&mut self, src: VAddr, dst: VAddr, payload: &[u8]) {
         let m = ToBroker::Send {
             src,
             dst,
             payload: payload.to_vec(),
+            local_vt: 0,
         };
-        assert_eq!(self.call(&m), FromBroker::Ack);
+        assert!(matches!(self.call(&m), FromBroker::Ack { .. }));
     }
     /// Non-blocking receive; `None` when the queue is empty.
     fn try_recv(&mut self, addr: VAddr) -> Option<Vec<u8>> {
         match self.call(&ToBroker::Recv {
             addr,
             blocking: false,
+            local_vt: 0,
         }) {
             FromBroker::Deliver { payload, .. } => Some(payload),
-            FromBroker::Empty => None,
-            FromBroker::Ack => panic!("unexpected Ack"),
+            FromBroker::Empty { .. } => None,
+            FromBroker::Ack { .. } => panic!("unexpected Ack"),
         }
     }
 }
@@ -206,6 +214,7 @@ fn blocking_recv_wakes_on_send() {
         match rx.call(&ToBroker::Recv {
             addr: ra,
             blocking: true,
+            local_vt: 0,
         }) {
             FromBroker::Deliver { payload, .. } => payload,
             other => panic!("expected delivery, got {other:?}"),

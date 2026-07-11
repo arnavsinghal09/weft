@@ -64,6 +64,7 @@ fn main() {
                 src: ta,
                 dst: ra,
                 payload: i.to_le_bytes().to_vec(),
+                local_vt: 0,
             },
         );
     }
@@ -72,6 +73,7 @@ fn main() {
         &ToBroker::Recv {
             addr: ra,
             blocking: false,
+            local_vt: 0,
         },
     ) {}
     drop(rx);
