@@ -53,6 +53,10 @@ What is **not** covered:
 - **`pthread_cond_timedwait` ignores its deadline** (modeled as untimed).
   Code relying on the timeout alone to make progress deadlock-detects
   instead of progressing.
+- **`pthread_cancel` is not interposed.** A cancelled managed thread dies
+  without returning its scheduler token, wedging every other managed
+  thread forever (the deadlock detector cannot see it: the dead thread
+  still looks runnable). Normal return and `pthread_exit` are handled.
 - **`dup`/`dup2`/`fcntl(F_DUPFD)` of a random-device fd** is untracked: the
   duplicate reads real `/dev/null` (EOF).
 - **Network coverage is `AF_INET`/`SOCK_DGRAM` (UDP) only.** TCP, Unix

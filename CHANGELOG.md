@@ -117,12 +117,30 @@ quickstart. Know its edges before you rely on it:
   back clean) and rewrote the walkthrough to teach the live-run-drift
   lesson directly instead of contradicting it.
 
+### Added (multi-host groundwork)
+
+- Broker TCP transport (`Broker::bind_tcp`) alongside the Unix socket, with
+  the same wire protocol and handler; `ToBroker` operations now carry the
+  sender's local virtual time and every `FromBroker` reply carries the
+  broker's logical clock, giving the broker a measured clock-skew bound
+  (`Broker::max_skew_ns`). The shim reports its vclock but deliberately does
+  NOT merge the broker's clock back: broker logical time depends on
+  cross-process arrival order, so folding it into guest-visible time would
+  break the same-seed guarantee (docs/MULTI_HOST_ARCHITECTURE.md).
+
 ### Changed
 
 - **BREAKING (API):** removed the never-implemented YAML scenario surface —
   `Scenario::from_yaml` and `parse_scenario_yaml` parsed JSON while claiming
   YAML. The DSL is JSON-only and documented as such; the `ParseError`
   message no longer mentions YAML.
+- **BREAKING (API):** `weft_net::config::parse` returns a typed
+  `ParseError` (hand-rolled, `Display`-compatible with the old `String`
+  messages) instead of `Result<_, String>`, matching the typed-error style
+  of `weft-scenario` and `weft-replay`.
+- **BREAKING (API):** `weft_chord::Invariantt` (typo) renamed to
+  `InvariantKind`; `weft_dst::run` module renamed to `run_cmd` to match
+  `replay_cmd`/`fuzz_cmd`.
 - `weft-scenario` now inherits workspace package metadata and lints: it was
   the one crate with no `license` field (failing `cargo deny check
   licenses`), a drifted version (0.1.0 vs 0.0.1), and lints off (18 hidden
@@ -279,6 +297,20 @@ quickstart. Know its edges before you rely on it:
 
 ### Fixed
 
+- `--trace` no longer deadlocks the target at startup. Trace lines were
+  emitted through `libc::write`, which inside the shim resolves to the
+  shim's own interposed `write` hook; a trace fired during shim
+  initialization (e.g. from an ld.so constructor via `getauxval`) re-entered
+  the initializing `OnceLock` and futex-waited on itself. Tracing now
+  issues the raw `write` syscall, which also keeps trace bytes out of the
+  ENOSPC byte accounting.
+- The scheduler test harness indexed its result array by logical tid,
+  but the harness main registers first as tid 0, so the last worker's
+  store was out of bounds: the worker panicked, died without handing the
+  scheduler token back, and the whole test binary hung forever with the
+  panic message trapped in libtest's output capture. Worker bodies now run
+  under `catch_unwind` so a failing assertion fails the test instead of
+  wedging it, and the index accounts for the main thread's tid.
 - `fopen("/dev/urandom")` + `fread` is now deterministic under multithreaded
   load. Each `fopen`ed random device gets its own independent seed-derived
   ChaCha8 substream (keyed by process-global open order) instead of sharing

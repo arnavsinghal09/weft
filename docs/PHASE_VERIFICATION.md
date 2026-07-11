@@ -37,6 +37,15 @@ cargo test --workspace --release:
 Total: 57 unit tests, all passing.
 ```
 
+**Correction (2026-07-11):** the `weft-shim: 6 tests passed` line above
+cannot have described a completed `sched_harness` run:
+`threads_that_exit_at_different_times_all_join` contained a latent
+out-of-bounds index (worker tids are 1..=N, its result array was indexed
+0..N-1) that made it hang deterministically on every platform since Phase 4,
+masked by `cargo test`'s fail-fast ordering. The test and the harness's
+panic handling are fixed; the suite now genuinely passes (6/6, verified ×3
+on Linux).
+
 ## Known Limitations & Honest Assessment
 
 **Phase 3 Limitation (Live-Run Drift):** Cross-process arrival order is re-rolled on each live execution (OS-scheduled, non-deterministic). Campaign verdicts are statistical, not seed-for-seed. Recording replay is identical (Phase 5), but two consecutive live runs of the same seed may reach different verdicts. Documented as intentional and irreducible without kernel-level determinism enforcement.
