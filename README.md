@@ -1,76 +1,117 @@
 # Weft
 
-**Deterministic simulation testing for unmodified Linux binaries.**
+**Weft weaves deterministic order out of concurrent chaos.**
 
-Weft is an open-source deterministic simulation testing (DST) framework in the
-spirit of [FoundationDB's simulator](https://apple.github.io/foundationdb/testing.html)
-and [Antithesis](https://antithesis.com/) — but general-purpose, and applied to
-compiled programs *as they are*. You do not rewrite your system against a
-special runtime: Weft intercepts the nondeterministic surface of an ordinary
-Linux binary at runtime (threads, time, randomness, network, disk) and weaves
-one deterministic, replayable order out of the many possible thread
-interleavings, network conditions, and fault schedules.
+Point it at a compiled Linux binary — no rewrite, no SDK, no special
+runtime — and one 64-bit seed determines every clock read, every random
+byte, and every thread interleaving in that process; with a simulated
+network, every message's latency, loss, and partition fate is a pure
+function of the seed too. Record a run and it replays byte-for-byte,
+forever, on any platform — a failing seed becomes a permanent, portable bug
+report. `weft fuzz` finds those seeds automatically and shrinks each one
+down to the smallest sequence of operations that still reproduces it.
 
-The name comes from weaving: the *weft* is the crosswise thread carried
-through the warp to make fabric.
+One honest caveat up front, not buried in the docs: in a live multi-process
+run, which process's message reaches the simulated network first is
+OS-scheduled, so re-running the *same seed* live can reach a different
+outcome. Record the run you care about — the recording replays identically,
+always. Details: [LIMITATIONS.md](LIMITATIONS.md) §3.
 
-> **Status: pre-alpha (Phase 0).** Nothing here runs your program yet. This
-> repository currently holds the project skeleton, CI, and design notes. The
-> roadmap below is real and being executed in order.
+Weft is in the tradition of
+[FoundationDB's simulator](https://apple.github.io/foundationdb/testing.html)
+and [Antithesis](https://antithesis.com/) — but general-purpose, retrofit
+onto binaries you already have rather than a runtime you build against from
+day one. The name comes from weaving: the *weft* is the crosswise thread
+carried through the warp to make fabric.
 
-## What Weft will do
+> **Status: working, pre-1.0.** Interception, deterministic scheduling,
+> simulated network, fault injection, record/replay, and fuzzing with
+> shrinking are all implemented and validated against two protocols with
+> formally-proven bugs (Chord, Raft) in unmodified C. Interfaces may still
+> change — see [VERSIONING.md](VERSIONING.md). Read
+> [LIMITATIONS.md](LIMITATIONS.md) before you trust a result.
 
-- **Intercept, don't instrument** — an `LD_PRELOAD` shim interposes on libc
-  and syscall boundaries of unmodified binaries; no recompilation, no SDK.
-- **Deterministic scheduling** — one seed fully determines thread
-  interleaving, clock behavior, and randomness.
-- **Simulated network & faults** — partitions, latency, reordering, disk
-  errors, and process crashes injected on a controlled schedule.
-- **Record & replay** — any failing run is a seed; replay it exactly,
-  forever, under a debugger.
-- **Schedule fuzzing** — search the space of interleavings and fault
-  schedules for the ones that break you.
+## See it work
 
-## Roadmap
+```console
+$ cc -O2 -o /tmp/chrono examples/chrono.c
+$ weft run --seed 42 -- /tmp/chrono | tail -1
+total virtual elapsed: 2800026 us, c11 time 962138923
 
-| Phase | Deliverable |
-|-------|-------------|
-| 0 | Project skeleton, CI, community files *(this phase)* |
-| 1 | `LD_PRELOAD` interception shim (`weft-shim`) |
-| 2 | Deterministic thread scheduler |
-| 3 | Simulated network |
-| 4 | Fault-injection engine |
-| 5 | Recording & replay |
-| 6 | Schedule/fault fuzzer |
-| 7–8 | Real-world integration harness & hardening |
+$ weft run --seed 42 -- /tmp/chrono | tail -1     # same seed
+total virtual elapsed: 2800026 us, c11 time 962138923
 
-## Installation
+$ weft run --seed 7  -- /tmp/chrono | tail -1     # different seed
+total virtual elapsed: 2800026 us, c11 time 957028369
 
-Not yet published. When it is:
+$ weft run --seed 3 -- /tmp/race_bank 2 2         # a real lost-update race
+threads=2 iters=2 expected=4 balance=2 lost=2     # ← fires. every time.
 
-```sh
-cargo install weft-dst   # installs the `weft` binary
+$ weft run --seed 2 -- /tmp/race_bank 2 2
+threads=2 iters=2 expected=4 balance=4 lost=0     # ← avoided. every time.
 ```
 
-(The crate is `weft-dst` because the bare name `weft` is taken on crates.io
-by an unrelated project; the binary is `weft`.)
+`chrono.c` mixes every libc clock API and sleeps between iterations; under
+Weft the sleeps advance virtual time instead of wall time, so it finishes
+instantly. `race_bank.c` has a classic split-critical-section bug — under
+Weft, whether the race fires is not luck, it's the seed's choice, and it's
+100% reproducible either way. The full walkthrough, including a network
+fault, a recorded/replayed run, and the fuzzer, is in the
+[user guide](docs/USER_GUIDE.md).
 
-## Building from source
+## Install
 
 ```sh
-cargo build
-cargo test
-./target/debug/weft --help
+cargo install --path crates/weft-dst     # the `weft` binary
+cargo build --release -p weft-shim       # libweft_shim.so (Linux only)
 ```
 
-Linux is the target platform for the interception runtime; the CLI and
-orchestrator build anywhere Rust does.
+`weft run` finds the shim via `WEFT_SHIM`, or next to the `weft` binary —
+copy `target/release/libweft_shim.so` beside `~/.cargo/bin/weft` (or pass
+`--shim <path>`). `weft replay` and `weft fuzz` are pure computation and
+need no shim; they work on every platform, including macOS.
+
+(The crate is `weft-dst` because the bare name `weft` is already taken on
+crates.io by an unrelated project; the installed binary is `weft`.)
+
+Interception itself needs Linux (x86-64, glibc, dynamically linked targets —
+see [LIMITATIONS.md](LIMITATIONS.md) §1). On macOS, run everything inside
+Docker; the [user guide](docs/USER_GUIDE.md) has the exact container
+recipe.
+
+## What it found
+
+Pointed at an unmodified C implementation of **Chord** (SIGCOMM 2001), Weft
+dynamically rediscovered the ring-connectivity flaw Zave proved formally in
+2012: 57 of 500 seeded runs break the ring under the original protocol,
+falling to 8/500 once published liveness fixes are applied. Pointed at a
+minimal **Raft** leader-election implementation, it reproduced the
+dissertation's votedFor-persistence edge case — 3 of 300 runs elect two
+leaders in the same term when vote state isn't persisted across a crash
+restart, 0 of 300 once it is. Both studies, including where detection has a
+measurable blind spot, are in
+[docs/case-study/CREDIBILITY_SUMMARY.md](docs/case-study/CREDIBILITY_SUMMARY.md).
+
+## Documentation
+
+| document | contents |
+|---|---|
+| [docs/USER_GUIDE.md](docs/USER_GUIDE.md) | quickstart, worked examples, Chord case-study walkthrough |
+| [docs/REFERENCE.md](docs/REFERENCE.md) | every flag, env var, format, and exit code |
+| [docs/architecture.md](docs/architecture.md) | how it works, before you read any code |
+| [docs/comparison.md](docs/comparison.md) | honest comparison with Antithesis and TigerBeetle |
+| [LIMITATIONS.md](LIMITATIONS.md) | exactly what Weft does not do — read before trusting results |
+| [VERSIONING.md](VERSIONING.md) | compatibility contracts: DSL, log format, CLI |
+| [ROADMAP.md](ROADMAP.md) | what's next, and what's explicitly not planned |
+| [docs/case-study/](docs/case-study/CREDIBILITY_SUMMARY.md) | the Chord & Raft validation evidence |
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Design notes and the full project
-layout live in [PROJECT_NOTES.md](PROJECT_NOTES.md). Security reports go
-through [SECURITY.md](SECURITY.md).
+[DEVELOPMENT.md](DEVELOPMENT.md) is a complete onboarding path: clone, build,
+run the full sanitizer/fuzz suite, make a first change. Ground rules and
+quality gates are in [CONTRIBUTING.md](CONTRIBUTING.md). Design decisions
+already made are recorded in [PROJECT_NOTES.md](PROJECT_NOTES.md). Security
+reports go through [SECURITY.md](SECURITY.md).
 
 ## License
 
