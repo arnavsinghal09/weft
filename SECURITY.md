@@ -17,7 +17,7 @@ Preferred channel: **GitHub private vulnerability reporting** — use
 "Report a vulnerability" under the repository's *Security* tab, which opens a
 private advisory visible only to maintainers.
 
-If you cannot use GitHub, email **atharvagandhi2005@gmail.com** with subject
+If you cannot use GitHub, email **arnavsinghal06@gmail.com** with subject
 line `[weft security]`. Include: affected version/commit, a reproduction or
 proof of concept, and your assessment of impact.
 

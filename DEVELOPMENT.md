@@ -8,7 +8,7 @@ contributor.
 ## 1. Clone and orient
 
 ```sh
-git clone https://github.com/weft-dst/weft && cd weft
+git clone https://github.com/arnavsinghal09/weft && cd weft
 ```
 
 Read in this order before writing code: [README.md](README.md) (what this
