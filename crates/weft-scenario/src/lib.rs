@@ -12,7 +12,7 @@ mod latency;
 mod parse;
 
 pub use latency::LatencyDistribution;
-pub use parse::{parse_scenario, parse_scenario_yaml, ScenarioError};
+pub use parse::{parse_scenario, ScenarioError};
 
 /// A complete fault scenario: processes, network faults, file I/O faults, events.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,12 +106,11 @@ pub enum EventAction {
 }
 
 impl Scenario {
-    /// Parse a scenario from YAML text. Returns detailed error messages on failure.
-    pub fn from_yaml(text: &str) -> Result<Self, ScenarioError> {
-        parse_scenario_yaml(text)
-    }
-
     /// Parse a scenario from JSON. Returns detailed error messages on failure.
+    ///
+    /// # Errors
+    /// Returns `ScenarioError` on malformed input or failed validation; see
+    /// [`parse_scenario`].
     pub fn from_json(text: &str) -> Result<Self, ScenarioError> {
         parse_scenario(text)
     }
@@ -132,10 +131,7 @@ impl Scenario {
             if id != i {
                 return Err(ScenarioError::InvalidNodeId(
                     id,
-                    format!(
-                        "nodes must be sequentially numbered; expected {}, got {}",
-                        i, id
-                    ),
+                    format!("nodes must be sequentially numbered; expected {i}, got {id}"),
                 ));
             }
         }

@@ -12,6 +12,10 @@ pub enum LatencyDistribution {
 
 impl LatencyDistribution {
     /// Parse latency spec: "fixed:1000" or "uniform:100-5000" or "exp:1000".
+    ///
+    /// # Errors
+    /// Returns `ScenarioError::InvalidLatency` when the spec has an unknown
+    /// prefix, a malformed number, or an inverted uniform range.
     pub fn parse(spec: &str) -> Result<Self, ScenarioError> {
         let spec = spec.trim();
 
@@ -27,16 +31,16 @@ impl LatencyDistribution {
                     "uniform format is 'uniform:LO-HI' (e.g., 'uniform:100-5000')".to_string(),
                 )
             })?;
-            let lo_ns = lo.parse::<u64>().map_err(|e| {
-                ScenarioError::InvalidLatency(spec.to_string(), format!("lo: {}", e))
-            })?;
-            let hi_ns = hi.parse::<u64>().map_err(|e| {
-                ScenarioError::InvalidLatency(spec.to_string(), format!("hi: {}", e))
-            })?;
+            let lo_ns = lo
+                .parse::<u64>()
+                .map_err(|e| ScenarioError::InvalidLatency(spec.to_string(), format!("lo: {e}")))?;
+            let hi_ns = hi
+                .parse::<u64>()
+                .map_err(|e| ScenarioError::InvalidLatency(spec.to_string(), format!("hi: {e}")))?;
             if lo_ns > hi_ns {
                 return Err(ScenarioError::InvalidLatency(
                     spec.to_string(),
-                    format!("lo ({}) must be <= hi ({})", lo_ns, hi_ns),
+                    format!("lo ({lo_ns}) must be <= hi ({hi_ns})"),
                 ));
             }
             Ok(Self::Uniform { lo_ns, hi_ns })

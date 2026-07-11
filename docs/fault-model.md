@@ -170,7 +170,7 @@ The scenario parser returns **detailed, actionable errors** on malformed input
 `weft-scenario` API):
 
 ```
-weft run: JSON/YAML parse error: missing field `nodes` at line 1 column 42
+weft run: JSON parse error: missing field `nodes` at line 1 column 42
 ```
 
 Parser guarantees:

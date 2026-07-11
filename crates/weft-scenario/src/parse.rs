@@ -6,7 +6,7 @@ use thiserror::Error;
 /// Detailed scenario parsing or validation error.
 #[derive(Error, Debug)]
 pub enum ScenarioError {
-    #[error("JSON/YAML parse error: {0}")]
+    #[error("JSON parse error: {0}")]
     ParseError(String),
 
     #[error("Invalid node ID {0}: {1}")]
@@ -31,13 +31,12 @@ pub enum ScenarioError {
     InvalidScenario(String),
 }
 
-/// Parse a scenario from YAML or JSON text (currently accepts JSON format).
-/// For now, the scenario format is JSON; YAML support is future work.
-pub fn parse_scenario_yaml(text: &str) -> Result<Scenario, ScenarioError> {
-    parse_scenario(text)
-}
-
 /// Parse a scenario from JSON text.
+///
+/// # Errors
+/// Returns `ScenarioError::ParseError` when the text is not valid JSON for
+/// the scenario schema, and `ScenarioError::InvalidScenario` when it parses
+/// but fails validation (bad net spec, duplicate process ids, …).
 pub fn parse_scenario(text: &str) -> Result<Scenario, ScenarioError> {
     let mut scenario: Scenario =
         serde_json::from_str(text).map_err(|e| ScenarioError::ParseError(e.to_string()))?;
@@ -122,7 +121,7 @@ fn validate_partition_spec(spec: &str) -> Result<(), ScenarioError> {
             if node_str.parse::<usize>().is_err() {
                 return Err(ScenarioError::InvalidPartition(
                     spec.to_string(),
-                    format!("'{}' is not a valid node ID", node_str),
+                    format!("'{node_str}' is not a valid node ID"),
                 ));
             }
         }
@@ -139,7 +138,7 @@ mod tests {
     fn parse_minimal_scenario() {
         let json =
             r#"{"name":"test","seed":42,"nodes":[{"node_id":0,"program":"./prog","args":[]}]}"#;
-        let scenario = parse_scenario_yaml(json).unwrap();
+        let scenario = parse_scenario(json).unwrap();
         assert_eq!(scenario.name, "test");
         assert_eq!(scenario.seed, 42);
         assert_eq!(scenario.nodes.len(), 1);
@@ -148,14 +147,14 @@ mod tests {
     #[test]
     fn parse_with_network_faults() {
         let json = r#"{"name":"net-test","seed":42,"nodes":[{"node_id":0,"program":"./prog","args":[]}],"network":{"latency":"uniform:100-1000","loss":0.1}}"#;
-        let scenario = parse_scenario_yaml(json).unwrap();
+        let scenario = parse_scenario(json).unwrap();
         assert!(scenario.network.is_some());
     }
 
     #[test]
     fn invalid_loss_probability() {
         let json = r#"{"name":"test","seed":42,"nodes":[{"node_id":0,"program":"./prog","args":[]}],"network":{"loss":1.5}}"#;
-        assert!(parse_scenario_yaml(json).is_err());
+        assert!(parse_scenario(json).is_err());
     }
 
     #[test]

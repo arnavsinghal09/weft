@@ -2,7 +2,7 @@
 //!
 //! Goal: parser never panics, always returns clear errors.
 
-use weft_scenario::parse_scenario_yaml;
+use weft_scenario::parse_scenario;
 
 #[test]
 fn parse_minimal_valid_scenario() {
@@ -13,7 +13,7 @@ fn parse_minimal_valid_scenario() {
     {"node_id": 0, "program": "./prog", "args": []}
   ]
 }"#;
-    let result = parse_scenario_yaml(json);
+    let result = parse_scenario(json);
     assert!(result.is_ok());
     let scenario = result.unwrap();
     assert_eq!(scenario.name, "test");
@@ -32,7 +32,7 @@ fn parse_multi_node_scenario() {
     {"node_id": 2, "program": "./replica", "args": []}
   ]
 }"#;
-    let result = parse_scenario_yaml(json);
+    let result = parse_scenario(json);
     assert!(result.is_ok());
     let scenario = result.unwrap();
     assert_eq!(scenario.nodes.len(), 3);
@@ -46,7 +46,7 @@ fn parse_with_network_faults() {
   "nodes": [{"node_id": 0, "program": "./prog", "args": []}],
   "network": {"latency": "uniform:100-1000", "loss": 0.1}
 }"#;
-    let result = parse_scenario_yaml(json);
+    let result = parse_scenario(json);
     assert!(result.is_ok());
     let scenario = result.unwrap();
     assert!(scenario.network.is_some());
@@ -63,7 +63,7 @@ fn parse_with_events() {
     {"time_ns": 5000, "action": {"type": "start", "node_id": 0}}
   ]
 }"#;
-    let result = parse_scenario_yaml(json);
+    let result = parse_scenario(json);
     assert!(result.is_ok());
     let scenario = result.unwrap();
     assert_eq!(scenario.events.len(), 2);
@@ -80,7 +80,7 @@ fn parse_with_filesystem_faults() {
     "0": {"fsync_lies": true, "enospc_after_bytes": 1000000, "torn_write_probability": 0.05}
   }
 }"#;
-    let result = parse_scenario_yaml(json);
+    let result = parse_scenario(json);
     assert!(result.is_ok());
 }
 
@@ -92,7 +92,7 @@ fn reject_invalid_loss_probability_above_one() {
   "nodes": [{"node_id": 0, "program": "./prog", "args": []}],
   "network": {"loss": 1.5}
 }"#;
-    let result = parse_scenario_yaml(json);
+    let result = parse_scenario(json);
     assert!(result.is_err());
 }
 
@@ -104,7 +104,7 @@ fn reject_invalid_loss_probability_negative() {
   "nodes": [{"node_id": 0, "program": "./prog", "args": []}],
   "network": {"loss": -0.1}
 }"#;
-    let result = parse_scenario_yaml(json);
+    let result = parse_scenario(json);
     assert!(result.is_err());
 }
 
@@ -116,7 +116,7 @@ fn reject_malformed_latency_fixed() {
   "nodes": [{"node_id": 0, "program": "./prog", "args": []}],
   "network": {"latency": "fixed:abc"}
 }"#;
-    let result = parse_scenario_yaml(json);
+    let result = parse_scenario(json);
     assert!(result.is_err());
 }
 
@@ -128,7 +128,7 @@ fn reject_malformed_latency_uniform_inverted() {
   "nodes": [{"node_id": 0, "program": "./prog", "args": []}],
   "network": {"latency": "uniform:5000-100"}
 }"#;
-    let result = parse_scenario_yaml(json);
+    let result = parse_scenario(json);
     assert!(result.is_err(), "lo > hi should be rejected");
 }
 
@@ -140,7 +140,7 @@ fn reject_malformed_latency_exponential_zero_mean() {
   "nodes": [{"node_id": 0, "program": "./prog", "args": []}],
   "network": {"latency": "exp:0"}
 }"#;
-    let result = parse_scenario_yaml(json);
+    let result = parse_scenario(json);
     assert!(result.is_err(), "exp with mean=0 should be rejected");
 }
 
@@ -152,7 +152,7 @@ fn reject_unknown_latency_type() {
   "nodes": [{"node_id": 0, "program": "./prog", "args": []}],
   "network": {"latency": "foobar:123"}
 }"#;
-    let result = parse_scenario_yaml(json);
+    let result = parse_scenario(json);
     assert!(result.is_err());
 }
 
@@ -166,7 +166,7 @@ fn reject_non_sequential_node_ids() {
     {"node_id": 2, "program": "./prog", "args": []}
   ]
 }"#;
-    let result = parse_scenario_yaml(json);
+    let result = parse_scenario(json);
     // Validation happens during parsing, so we expect error
     assert!(result.is_err());
 }
@@ -179,7 +179,7 @@ fn reject_event_referencing_nonexistent_node() {
   "nodes": [{"node_id": 0, "program": "./prog", "args": []}],
   "events": [{"time_ns": 1000, "action": {"type": "crash", "node_id": 5}}]
 }"#;
-    let result = parse_scenario_yaml(json);
+    let result = parse_scenario(json);
     assert!(result.is_err() || result.unwrap().validate().is_err());
 }
 
@@ -191,7 +191,7 @@ fn reject_filesystem_fault_for_nonexistent_node() {
   "nodes": [{"node_id": 0, "program": "./prog", "args": []}],
   "filesystem": {"10": {"fsync_lies": true}}
 }"#;
-    let result = parse_scenario_yaml(json);
+    let result = parse_scenario(json);
     assert!(result.is_err() || result.unwrap().validate().is_err());
 }
 
@@ -203,7 +203,7 @@ fn reject_malformed_partition_spec_empty_group() {
   "nodes": [{"node_id": 0, "program": "./prog", "args": []}],
   "network": {"partitions": "|0"}
 }"#;
-    let result = parse_scenario_yaml(json);
+    let result = parse_scenario(json);
     assert!(result.is_err());
 }
 
@@ -215,7 +215,7 @@ fn reject_malformed_partition_spec_non_numeric() {
   "nodes": [{"node_id": 0, "program": "./prog", "args": []}],
   "network": {"partitions": "0+x"}
 }"#;
-    let result = parse_scenario_yaml(json);
+    let result = parse_scenario(json);
     assert!(result.is_err());
 }
 
@@ -231,19 +231,19 @@ fn accept_valid_partition_spec() {
   ],
   "network": {"partitions": "0+1|2"}
 }"#;
-    let result = parse_scenario_yaml(json);
+    let result = parse_scenario(json);
     assert!(result.is_ok());
 }
 
 #[test]
 fn parser_never_panics_on_empty() {
-    let _ = parse_scenario_yaml("");
+    let _ = parse_scenario("");
 }
 
 #[test]
 fn parser_never_panics_on_garbage() {
     let garbage = "!@#$%^&*()_+-=[]{}|;:',.<>?/`~";
-    let _ = parse_scenario_yaml(garbage);
+    let _ = parse_scenario(garbage);
 }
 
 #[test]
@@ -253,7 +253,7 @@ fn parser_never_panics_on_huge_seed() {
   "seed": 18446744073709551615,
   "nodes": [{"node_id": 0, "program": "./prog", "args": []}]
 }"#;
-    let _ = parse_scenario_yaml(json);
+    let _ = parse_scenario(json);
 }
 
 #[test]
@@ -264,12 +264,12 @@ fn parser_never_panics_on_many_nodes() {
         if i > 0 {
             json.push(',');
         }
-        json.push_str(&format!(r#"{{"node_id":{},"program":"p","args":[]}}"#, i));
+        json.push_str(&format!(r#"{{"node_id":{i},"program":"p","args":[]}}"#));
     }
 
     json.push_str("]}");
 
-    let result = parse_scenario_yaml(&json);
+    let result = parse_scenario(&json);
     if let Ok(scenario) = result {
         assert_eq!(scenario.nodes.len(), 100);
     }
@@ -293,7 +293,7 @@ fn parser_never_panics_on_huge_event_list() {
 
     json.push_str("]}");
 
-    let result = parse_scenario_yaml(&json);
+    let result = parse_scenario(&json);
     if let Ok(scenario) = result {
         assert_eq!(scenario.events.len(), 1000);
     }
