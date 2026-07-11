@@ -83,8 +83,14 @@ cargo build --release -p weft-shim       # libweft_shim.so (Linux only)
 ```
 
 `weft run` finds the shim via `WEFT_SHIM`, or next to the `weft` binary —
-copy `target/release/libweft_shim.so` beside `~/.cargo/bin/weft` (or pass
-`--shim <path>`). `weft replay` and `weft fuzz` are pure computation and
+copy it beside wherever cargo installed `weft` (usually `~/.cargo/bin`;
+`$CARGO_TARGET_DIR` changes the build path too):
+
+```sh
+cp "${CARGO_TARGET_DIR:-target}/release/libweft_shim.so" "$(dirname "$(command -v weft)")/"
+```
+
+Or skip the copy and pass `--shim <path>` per run. `weft replay` and `weft fuzz` are pure computation and
 need no shim; they work on every platform, including macOS.
 
 (The crate is `weft-dst` because the bare name `weft` is already taken on

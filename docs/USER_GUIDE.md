@@ -143,6 +143,10 @@ target/linux/release/weft fuzz --config examples/fuzz/demo.json
 #   verify : weft replay weft-fuzz-out/repro-seed0-….weftlog --check fifo,dup
 ```
 
+(The exact op counts vary a little between live campaigns — cross-process
+arrival order is OS-scheduled, LIMITATIONS.md §3c — but every emitted
+reproducer replays identically, forever.)
+
 Each reproducer is a fresh, self-consistent weft-log — typically under ten
 records — that replays identically and fails the same invariant on the same
 channel as the original run. The reduction scales: at ~14,000 ops the
