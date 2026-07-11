@@ -22,7 +22,7 @@ and must be stated plainly, because a skeptical reader will ask exactly this.
 **C1 — The interception path is Linux-only; this host is macOS.**
 `weft run` (LD_PRELOAD shim injection: time, randomness, threads, UDP, file
 faults) is `#[cfg(target_os = "linux")]`. On Darwin it is a compile-time stub
-that returns an error (`crates/weft-dst/src/run.rs`). A Linux container is the
+that returns an error (`crates/weft-dst/src/run_cmd.rs`). A Linux container is the
 only way to exercise the shim at all. `docker` is available here, so this is
 surmountable but real.
 

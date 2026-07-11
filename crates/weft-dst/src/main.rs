@@ -5,7 +5,7 @@
 
 use std::process::ExitCode;
 
-use weft_dst::{fuzz_cmd, replay_cmd, run};
+use weft_dst::{fuzz_cmd, replay_cmd, run_cmd};
 
 const USAGE: &str = "\
 weft - deterministic simulation testing for unmodified Linux binaries
@@ -36,8 +36,8 @@ Options:
 fn main() -> ExitCode {
     let mut args = std::env::args_os().skip(1);
     match args.next().as_deref().and_then(std::ffi::OsStr::to_str) {
-        Some("run") => match run::parse_args(args) {
-            Ok(opts) if opts.net.is_some() => match run::run_cluster(&opts) {
+        Some("run") => match run_cmd::parse_args(args) {
+            Ok(opts) if opts.net.is_some() => match run_cmd::run_cluster(&opts) {
                 // Clamp to u8 range; anything non-zero must stay non-zero.
                 Ok(code) => {
                     ExitCode::from(u8::try_from(code).unwrap_or(1).max(u8::from(code != 0)))
@@ -50,7 +50,7 @@ fn main() -> ExitCode {
             Ok(opts) => {
                 // Only returns on failure (on Linux, success replaces the
                 // process via exec so the target's exit status is ours).
-                eprintln!("weft run: {}", run::exec(&opts));
+                eprintln!("weft run: {}", run_cmd::exec(&opts));
                 ExitCode::FAILURE
             }
             Err(msg) => {

@@ -8,7 +8,7 @@
 pub mod fuzz_cmd;
 pub mod orchestrator;
 pub mod replay_cmd;
-pub mod run;
+pub mod run_cmd;
 
 /// Weft's own version, as baked in at compile time.
 #[must_use]
