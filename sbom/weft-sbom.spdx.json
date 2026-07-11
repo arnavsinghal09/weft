@@ -1,0 +1,1101 @@
+{
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "creationInfo": {
+    "created": "2026-07-09T14:36:05Z",
+    "creators": [
+      "Tool: cargo-sbom-v0.10.0"
+    ]
+  },
+  "dataLicense": "CC0-1.0",
+  "documentNamespace": "https://spdx.org/spdxdocs/weft-dst-app-d738eb11-be0a-4010-8c37-c97a00f92b7a",
+  "files": [
+    {
+      "SPDXID": "SPDXRef-File-weft_abi",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "6b01e196eae17b1f9995f22f976fb3f2bf0fe411"
+        }
+      ],
+      "fileName": "./Cargo.lock",
+      "fileTypes": [
+        "SOURCE",
+        "TEXT"
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-File-weft_chord",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "6b01e196eae17b1f9995f22f976fb3f2bf0fe411"
+        }
+      ],
+      "fileName": "./Cargo.lock",
+      "fileTypes": [
+        "SOURCE",
+        "TEXT"
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-File-chord-check",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "6b01e196eae17b1f9995f22f976fb3f2bf0fe411"
+        }
+      ],
+      "fileName": "./Cargo.lock",
+      "fileTypes": [
+        "SOURCE",
+        "TEXT"
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-File-chord-trace",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "6b01e196eae17b1f9995f22f976fb3f2bf0fe411"
+        }
+      ],
+      "fileName": "./Cargo.lock",
+      "fileTypes": [
+        "SOURCE",
+        "TEXT"
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-File-weft_dst",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "6b01e196eae17b1f9995f22f976fb3f2bf0fe411"
+        }
+      ],
+      "fileName": "./Cargo.lock",
+      "fileTypes": [
+        "SOURCE",
+        "TEXT"
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-File-weft",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "6b01e196eae17b1f9995f22f976fb3f2bf0fe411"
+        }
+      ],
+      "fileName": "./Cargo.lock",
+      "fileTypes": [
+        "SOURCE",
+        "TEXT"
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-File-weft_fuzz",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "6b01e196eae17b1f9995f22f976fb3f2bf0fe411"
+        }
+      ],
+      "fileName": "./Cargo.lock",
+      "fileTypes": [
+        "SOURCE",
+        "TEXT"
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-File-weft_net",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "6b01e196eae17b1f9995f22f976fb3f2bf0fe411"
+        }
+      ],
+      "fileName": "./Cargo.lock",
+      "fileTypes": [
+        "SOURCE",
+        "TEXT"
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-File-weft_raft",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "6b01e196eae17b1f9995f22f976fb3f2bf0fe411"
+        }
+      ],
+      "fileName": "./Cargo.lock",
+      "fileTypes": [
+        "SOURCE",
+        "TEXT"
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-File-raft-check",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "6b01e196eae17b1f9995f22f976fb3f2bf0fe411"
+        }
+      ],
+      "fileName": "./Cargo.lock",
+      "fileTypes": [
+        "SOURCE",
+        "TEXT"
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-File-weft_replay",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "6b01e196eae17b1f9995f22f976fb3f2bf0fe411"
+        }
+      ],
+      "fileName": "./Cargo.lock",
+      "fileTypes": [
+        "SOURCE",
+        "TEXT"
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-File-weft_scenario",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "6b01e196eae17b1f9995f22f976fb3f2bf0fe411"
+        }
+      ],
+      "fileName": "./Cargo.lock",
+      "fileTypes": [
+        "SOURCE",
+        "TEXT"
+      ]
+    }
+  ],
+  "name": "weft-dst-app",
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package-crc32fast-1.5.0",
+      "description": "Fast, SIMD-accelerated CRC32 (IEEE) checksum computation",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/crc32fast@1.5.0",
+          "referenceType": "purl"
+        }
+      ],
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "crc32fast",
+      "versionInfo": "1.5.0"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-itoa-1.0.18",
+      "description": "Fast integer primitive to string conversion",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/itoa@1.0.18",
+          "referenceType": "purl"
+        }
+      ],
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "itoa",
+      "versionInfo": "1.0.18"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-weft-replay-0.0.1",
+      "description": "Event-log recording, deterministic replay, and invariant checking for Weft",
+      "downloadLocation": "NONE",
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "weft-replay",
+      "versionInfo": "0.0.1"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-weft-dst-0.0.1",
+      "description": "Deterministic simulation testing for unmodified Linux binaries",
+      "downloadLocation": "NONE",
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "weft-dst",
+      "versionInfo": "0.0.1"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-thiserror-1.0.69",
+      "description": "derive(Error)",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/thiserror@1.0.69",
+          "referenceType": "purl"
+        }
+      ],
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "thiserror",
+      "versionInfo": "1.0.69"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-adler2-2.0.1",
+      "description": "A simple clean-room implementation of the Adler-32 checksum",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/adler2@2.0.1",
+          "referenceType": "purl"
+        }
+      ],
+      "licenseConcluded": "0BSD OR MIT OR Apache-2.0",
+      "licenseDeclared": "0BSD OR MIT OR Apache-2.0",
+      "name": "adler2",
+      "versionInfo": "2.0.1"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-weft-abi-0.0.1",
+      "description": "Shared constants and seed plumbing for the Weft DST framework",
+      "downloadLocation": "NONE",
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "weft-abi",
+      "versionInfo": "0.0.1"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-miniz--oxide-0.8.9",
+      "description": "DEFLATE compression and decompression library rewritten in Rust based on miniz",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/miniz_oxide@0.8.9",
+          "referenceType": "purl"
+        }
+      ],
+      "homepage": "https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide",
+      "licenseConcluded": "MIT OR Zlib OR Apache-2.0",
+      "licenseDeclared": "MIT OR Zlib OR Apache-2.0",
+      "name": "miniz_oxide",
+      "versionInfo": "0.8.9"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-weft-chord-0.0.1",
+      "description": "Chord ring-maintenance invariant checker over Weft recordings (Phase 7 case study)",
+      "downloadLocation": "NONE",
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "weft-chord",
+      "versionInfo": "0.0.1"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-weft-net-0.0.1",
+      "description": "Weft network simulation: wire protocol, seeded fault model, and broker",
+      "downloadLocation": "NONE",
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "weft-net",
+      "versionInfo": "0.0.1"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-thiserror-impl-1.0.69",
+      "description": "Implementation detail of the `thiserror` crate",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/thiserror-impl@1.0.69",
+          "referenceType": "purl"
+        }
+      ],
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "thiserror-impl",
+      "versionInfo": "1.0.69"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-zerocopy-0.8.52",
+      "description": "Zerocopy makes zero-cost memory manipulation effortless. We write \"unsafe\" so you don't have to.",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/zerocopy@0.8.52",
+          "referenceType": "purl"
+        }
+      ],
+      "licenseConcluded": "BSD-2-Clause OR Apache-2.0 OR MIT",
+      "licenseDeclared": "BSD-2-Clause OR Apache-2.0 OR MIT",
+      "name": "zerocopy",
+      "versionInfo": "0.8.52"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-flate2-1.1.9",
+      "description": "DEFLATE compression and decompression exposed as Read/BufRead/Write streams.\nSupports miniz_oxide and multiple zlib implementations. Supports zlib, gzip,\nand raw deflate streams.\n",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/flate2@1.1.9",
+          "referenceType": "purl"
+        }
+      ],
+      "homepage": "https://github.com/rust-lang/flate2-rs",
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "flate2",
+      "versionInfo": "1.1.9"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-ppv-lite86-0.2.21",
+      "description": "Cross-platform cryptography-oriented low-level SIMD library.",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/ppv-lite86@0.2.21",
+          "referenceType": "purl"
+        }
+      ],
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "ppv-lite86",
+      "versionInfo": "0.2.21"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-zerocopy-derive-0.8.52",
+      "description": "Custom derive for traits from the zerocopy crate",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/zerocopy-derive@0.8.52",
+          "referenceType": "purl"
+        }
+      ],
+      "licenseConcluded": "BSD-2-Clause OR Apache-2.0 OR MIT",
+      "licenseDeclared": "BSD-2-Clause OR Apache-2.0 OR MIT",
+      "name": "zerocopy-derive",
+      "versionInfo": "0.8.52"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-unicode-ident-1.0.24",
+      "description": "Determine whether characters have the XID_Start or XID_Continue properties according to Unicode Standard Annex #31",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/unicode-ident@1.0.24",
+          "referenceType": "purl"
+        }
+      ],
+      "licenseConcluded": "(MIT OR Apache-2.0) AND Unicode-3.0",
+      "licenseDeclared": "(MIT OR Apache-2.0) AND Unicode-3.0",
+      "name": "unicode-ident",
+      "versionInfo": "1.0.24"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-rand--chacha-0.3.1",
+      "description": "ChaCha random number generator\n",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/rand_chacha@0.3.1",
+          "referenceType": "purl"
+        }
+      ],
+      "homepage": "https://rust-random.github.io/book",
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "rand_chacha",
+      "versionInfo": "0.3.1"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-proc-macro2-1.0.106",
+      "description": "A substitute implementation of the compiler's `proc_macro` API to decouple token-based libraries from the procedural macro use case.",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/proc-macro2@1.0.106",
+          "referenceType": "purl"
+        }
+      ],
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "proc-macro2",
+      "versionInfo": "1.0.106"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-serde--json-1.0.150",
+      "description": "A JSON serialization file format",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/serde_json@1.0.150",
+          "referenceType": "purl"
+        }
+      ],
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "serde_json",
+      "versionInfo": "1.0.150"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-rand--core-0.6.4",
+      "description": "Core random number generator traits and tools for implementation.\n",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/rand_core@0.6.4",
+          "referenceType": "purl"
+        }
+      ],
+      "homepage": "https://rust-random.github.io/book",
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "rand_core",
+      "versionInfo": "0.6.4"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-quote-1.0.46",
+      "description": "Quasi-quoting macro quote!(...)",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/quote@1.0.46",
+          "referenceType": "purl"
+        }
+      ],
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "quote",
+      "versionInfo": "1.0.46"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-weft-raft-0.0.1",
+      "description": "Raft ElectionSafety checker over Weft recordings (Phase 7 second target)",
+      "downloadLocation": "NONE",
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "weft-raft",
+      "versionInfo": "0.0.1"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-simd-adler32-0.3.9",
+      "description": "A SIMD-accelerated Adler-32 hash algorithm implementation.",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/simd-adler32@0.3.9",
+          "referenceType": "purl"
+        }
+      ],
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "name": "simd-adler32",
+      "versionInfo": "0.3.9"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-weft-fuzz-0.0.1",
+      "description": "Seed fuzzing and failure shrinking for Weft",
+      "downloadLocation": "NONE",
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "weft-fuzz",
+      "versionInfo": "0.0.1"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-cfg-if-1.0.4",
+      "description": "A macro to ergonomically define an item depending on a large number of #[cfg]\nparameters. Structured like an if-else chain, the first matching branch is the\nitem that gets emitted.\n",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/cfg-if@1.0.4",
+          "referenceType": "purl"
+        }
+      ],
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "cfg-if",
+      "versionInfo": "1.0.4"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-weft-scenario-0.0.1",
+      "description": "Fault-scenario DSL (JSON) parsing and validation for the Weft DST framework",
+      "downloadLocation": "NONE",
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "weft-scenario",
+      "versionInfo": "0.0.1"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-weft-shim-0.0.1",
+      "description": "LD_PRELOAD determinism shim for the Weft DST framework",
+      "downloadLocation": "NONE",
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "weft-shim",
+      "versionInfo": "0.0.1"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-syn-2.0.118",
+      "description": "Parser for Rust source code",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/syn@2.0.118",
+          "referenceType": "purl"
+        }
+      ],
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "syn",
+      "versionInfo": "2.0.118"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-memchr-2.8.2",
+      "description": "Provides extremely fast (uses SIMD on x86_64, aarch64 and wasm32) routines for\n1, 2 or 3 byte search and single substring search.\n",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/memchr@2.8.2",
+          "referenceType": "purl"
+        }
+      ],
+      "homepage": "https://github.com/BurntSushi/memchr",
+      "licenseConcluded": "Unlicense OR MIT",
+      "licenseDeclared": "Unlicense OR MIT",
+      "name": "memchr",
+      "versionInfo": "2.8.2"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-zmij-1.0.21",
+      "description": "A double-to-string conversion algorithm based on Schubfach and yy",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/zmij@1.0.21",
+          "referenceType": "purl"
+        }
+      ],
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "name": "zmij",
+      "versionInfo": "1.0.21"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-serde-1.0.228",
+      "description": "A generic serialization/deserialization framework",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/serde@1.0.228",
+          "referenceType": "purl"
+        }
+      ],
+      "homepage": "https://serde.rs",
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "serde",
+      "versionInfo": "1.0.228"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-serde--derive-1.0.228",
+      "description": "Macros 1.1 implementation of #[derive(Serialize, Deserialize)]",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/serde_derive@1.0.228",
+          "referenceType": "purl"
+        }
+      ],
+      "homepage": "https://serde.rs",
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "serde_derive",
+      "versionInfo": "1.0.228"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-libc-0.2.186",
+      "description": "Raw FFI bindings to platform libraries like libc.",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/libc@0.2.186",
+          "referenceType": "purl"
+        }
+      ],
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "libc",
+      "versionInfo": "0.2.186"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-serde--core-1.0.228",
+      "description": "Serde traits only, with no support for derive -- use the `serde` crate instead",
+      "downloadLocation": "registry+https://github.com/rust-lang/crates.io-index",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:cargo/serde_core@1.0.228",
+          "referenceType": "purl"
+        }
+      ],
+      "homepage": "https://serde.rs",
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "name": "serde_core",
+      "versionInfo": "1.0.228"
+    }
+  ],
+  "relationships": [
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-abi-0.0.1",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-net-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-fuzz-0.0.1",
+      "relationshipType": "GENERATED_FROM",
+      "spdxElementId": "SPDXRef-File-weft_fuzz"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-rand--core-0.6.4",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-rand--chacha-0.3.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-libc-0.2.186",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-dst-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-serde--json-1.0.150",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-replay-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-proc-macro2-1.0.106",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-zerocopy-derive-0.8.52"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-File-weft",
+      "relationshipType": "DESCRIBES",
+      "spdxElementId": "SPDXRef-DOCUMENT"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-raft-0.0.1",
+      "relationshipType": "GENERATED_FROM",
+      "spdxElementId": "SPDXRef-File-weft_raft"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-net-0.0.1",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-shim-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-dst-0.0.1",
+      "relationshipType": "GENERATED_FROM",
+      "spdxElementId": "SPDXRef-File-weft_dst"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-unicode-ident-1.0.24",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-syn-2.0.118"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-net-0.0.1",
+      "relationshipType": "GENERATED_FROM",
+      "spdxElementId": "SPDXRef-File-weft_net"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-flate2-1.1.9",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-replay-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-serde-1.0.228",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-replay-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-serde-1.0.228",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-scenario-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-cfg-if-1.0.4",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-crc32fast-1.5.0"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-rand--chacha-0.3.1",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-shim-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-simd-adler32-0.3.9",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-miniz--oxide-0.8.9"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-rand--core-0.6.4",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-shim-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-miniz--oxide-0.8.9",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-flate2-1.1.9"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-net-0.0.1",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-dst-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-replay-0.0.1",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-raft-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-File-chord-check",
+      "relationshipType": "DESCRIBES",
+      "spdxElementId": "SPDXRef-DOCUMENT"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-quote-1.0.46",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-serde--derive-1.0.228"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-abi-0.0.1",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-shim-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-thiserror-impl-1.0.69",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-thiserror-1.0.69"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-libc-0.2.186",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-shim-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-serde--core-1.0.228",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-serde--json-1.0.150"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-memchr-2.8.2",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-serde--json-1.0.150"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-syn-2.0.118",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-thiserror-impl-1.0.69"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-abi-0.0.1",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-fuzz-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-quote-1.0.46",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-zerocopy-derive-0.8.52"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-raft-0.0.1",
+      "relationshipType": "GENERATED_FROM",
+      "spdxElementId": "SPDXRef-File-raft-check"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-File-weft_abi",
+      "relationshipType": "DESCRIBES",
+      "spdxElementId": "SPDXRef-DOCUMENT"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-zerocopy-derive-0.8.52",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-zerocopy-0.8.52"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-File-weft_chord",
+      "relationshipType": "DESCRIBES",
+      "spdxElementId": "SPDXRef-DOCUMENT"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-thiserror-1.0.69",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-scenario-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-File-weft_fuzz",
+      "relationshipType": "DESCRIBES",
+      "spdxElementId": "SPDXRef-DOCUMENT"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-net-0.0.1",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-fuzz-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-zerocopy-0.8.52",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-ppv-lite86-0.2.21"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-unicode-ident-1.0.24",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-proc-macro2-1.0.106"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-File-weft_net",
+      "relationshipType": "DESCRIBES",
+      "spdxElementId": "SPDXRef-DOCUMENT"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-proc-macro2-1.0.106",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-thiserror-impl-1.0.69"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-proc-macro2-1.0.106",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-syn-2.0.118"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-serde--derive-1.0.228",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-serde-1.0.228"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-quote-1.0.46",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-thiserror-impl-1.0.69"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-File-weft_dst",
+      "relationshipType": "DESCRIBES",
+      "spdxElementId": "SPDXRef-DOCUMENT"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-fuzz-0.0.1",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-dst-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-serde--derive-1.0.228",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-serde--core-1.0.228"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-rand--core-0.6.4",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-net-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-syn-2.0.118",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-zerocopy-derive-0.8.52"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-replay-0.0.1",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-fuzz-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-dst-0.0.1",
+      "relationshipType": "GENERATED_FROM",
+      "spdxElementId": "SPDXRef-File-weft"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-rand--chacha-0.3.1",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-net-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-syn-2.0.118",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-serde--derive-1.0.228"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-File-weft_replay",
+      "relationshipType": "DESCRIBES",
+      "spdxElementId": "SPDXRef-DOCUMENT"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-replay-0.0.1",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-chord-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-serde--json-1.0.150",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-fuzz-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-scenario-0.0.1",
+      "relationshipType": "GENERATED_FROM",
+      "spdxElementId": "SPDXRef-File-weft_scenario"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-ppv-lite86-0.2.21",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-rand--chacha-0.3.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-serde-1.0.228",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-fuzz-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-File-raft-check",
+      "relationshipType": "DESCRIBES",
+      "spdxElementId": "SPDXRef-DOCUMENT"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-File-weft_scenario",
+      "relationshipType": "DESCRIBES",
+      "spdxElementId": "SPDXRef-DOCUMENT"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-adler2-2.0.1",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-miniz--oxide-0.8.9"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-chord-0.0.1",
+      "relationshipType": "GENERATED_FROM",
+      "spdxElementId": "SPDXRef-File-chord-check"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-scenario-0.0.1",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-dst-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-serde--core-1.0.228",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-serde-1.0.228"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-proc-macro2-1.0.106",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-quote-1.0.46"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-replay-0.0.1",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-dst-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-quote-1.0.46",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-syn-2.0.118"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-zmij-1.0.21",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-serde--json-1.0.150"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-File-weft_raft",
+      "relationshipType": "DESCRIBES",
+      "spdxElementId": "SPDXRef-DOCUMENT"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-serde--json-1.0.150",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-dst-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-serde--json-1.0.150",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-scenario-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-abi-0.0.1",
+      "relationshipType": "GENERATED_FROM",
+      "spdxElementId": "SPDXRef-File-weft_abi"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-net-0.0.1",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-replay-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-crc32fast-1.5.0",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-flate2-1.1.9"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-proc-macro2-1.0.106",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-serde--derive-1.0.228"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-serde-1.0.228",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-serde--json-1.0.150"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-chord-0.0.1",
+      "relationshipType": "GENERATED_FROM",
+      "spdxElementId": "SPDXRef-File-chord-trace"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-itoa-1.0.18",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-serde--json-1.0.150"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-File-chord-trace",
+      "relationshipType": "DESCRIBES",
+      "spdxElementId": "SPDXRef-DOCUMENT"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-abi-0.0.1",
+      "relationshipType": "DEPENDS_ON",
+      "spdxElementId": "SPDXRef-Package-weft-dst-0.0.1"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-replay-0.0.1",
+      "relationshipType": "GENERATED_FROM",
+      "spdxElementId": "SPDXRef-File-weft_replay"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-weft-chord-0.0.1",
+      "relationshipType": "GENERATED_FROM",
+      "spdxElementId": "SPDXRef-File-weft_chord"
+    }
+  ],
+  "spdxVersion": "SPDX-2.3"
+}

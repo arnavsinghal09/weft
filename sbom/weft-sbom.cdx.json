@@ -1,0 +1,1077 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "author": "Erick Tryzelaar <erick.tryzelaar@gmail.com>, David Tolnay <dtolnay@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-serde_derive-1.0.228",
+      "description": "Macros 1.1 implementation of #[derive(Serialize, Deserialize)]",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://serde.rs/derive.html"
+        },
+        {
+          "type": "website",
+          "url": "https://serde.rs"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/serde-rs/serde"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "serde_derive",
+      "purl": "pkg:cargo/serde_derive@1.0.228",
+      "type": "application",
+      "version": "1.0.228"
+    },
+    {
+      "author": "Andrew Gallant <jamslam@gmail.com>, bluss",
+      "bom-ref": "CycloneDxRef-Component-memchr-2.8.2",
+      "description": "Provides extremely fast (uses SIMD on x86_64, aarch64 and wasm32) routines for\n1, 2 or 3 byte search and single substring search.\n",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/memchr/"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/BurntSushi/memchr"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/BurntSushi/memchr"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Unlicense OR MIT"
+        }
+      ],
+      "name": "memchr",
+      "purl": "pkg:cargo/memchr@2.8.2",
+      "type": "library",
+      "version": "2.8.2"
+    },
+    {
+      "author": "Erick Tryzelaar <erick.tryzelaar@gmail.com>, David Tolnay <dtolnay@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-serde-1.0.228",
+      "description": "A generic serialization/deserialization framework",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/serde"
+        },
+        {
+          "type": "website",
+          "url": "https://serde.rs"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/serde-rs/serde"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "serde",
+      "purl": "pkg:cargo/serde@1.0.228",
+      "type": "library",
+      "version": "1.0.228"
+    },
+    {
+      "author": "Weft contributors",
+      "bom-ref": "CycloneDxRef-Component-weft-scenario-0.0.1",
+      "description": "Fault-scenario DSL (JSON) parsing and validation for the Weft DST framework",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/weft-dst/weft"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "weft-scenario",
+      "type": "library",
+      "version": "0.0.1"
+    },
+    {
+      "author": "Frommi <daniil.liferenko@gmail.com>, oyvindln <oyvindln@users.noreply.github.com>, Rich Geldreich richgel99@gmail.com",
+      "bom-ref": "CycloneDxRef-Component-miniz_oxide-0.8.9",
+      "description": "DEFLATE compression and decompression library rewritten in Rust based on miniz",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/miniz_oxide"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Zlib OR Apache-2.0"
+        }
+      ],
+      "name": "miniz_oxide",
+      "purl": "pkg:cargo/miniz_oxide@0.8.9",
+      "type": "library",
+      "version": "0.8.9"
+    },
+    {
+      "author": "David Tolnay <dtolnay@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-quote-1.0.46",
+      "description": "Quasi-quoting macro quote!(...)",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/quote/"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dtolnay/quote"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "quote",
+      "purl": "pkg:cargo/quote@1.0.46",
+      "type": "library",
+      "version": "1.0.46"
+    },
+    {
+      "author": "David Tolnay <dtolnay@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-thiserror-impl-1.0.69",
+      "description": "Implementation detail of the `thiserror` crate",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/dtolnay/thiserror"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "thiserror-impl",
+      "purl": "pkg:cargo/thiserror-impl@1.0.69",
+      "type": "application",
+      "version": "1.0.69"
+    },
+    {
+      "author": "Joshua Liebow-Feeser <joshlf@google.com>, Jack Wrenn <jswrenn@amazon.com>",
+      "bom-ref": "CycloneDxRef-Component-zerocopy-0.8.52",
+      "description": "Zerocopy makes zero-cost memory manipulation effortless. We write \"unsafe\" so you don't have to.",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/google/zerocopy"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "BSD-2-Clause OR Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "zerocopy",
+      "purl": "pkg:cargo/zerocopy@0.8.52",
+      "type": "library",
+      "version": "0.8.52"
+    },
+    {
+      "author": "Alex Crichton <alex@alexcrichton.com>",
+      "bom-ref": "CycloneDxRef-Component-cfg-if-1.0.4",
+      "description": "A macro to ergonomically define an item depending on a large number of #[cfg]\nparameters. Structured like an if-else chain, the first matching branch is the\nitem that gets emitted.\n",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/rust-lang/cfg-if"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "cfg-if",
+      "purl": "pkg:cargo/cfg-if@1.0.4",
+      "type": "library",
+      "version": "1.0.4"
+    },
+    {
+      "author": "Weft contributors",
+      "bom-ref": "CycloneDxRef-Component-weft-fuzz-0.0.1",
+      "description": "Seed fuzzing and failure shrinking for Weft",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/weft-dst/weft"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "weft-fuzz",
+      "type": "library",
+      "version": "0.0.1"
+    },
+    {
+      "author": "David Tolnay <dtolnay@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-thiserror-1.0.69",
+      "description": "derive(Error)",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/thiserror"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dtolnay/thiserror"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "thiserror",
+      "purl": "pkg:cargo/thiserror@1.0.69",
+      "type": "library",
+      "version": "1.0.69"
+    },
+    {
+      "author": "Sam Rijs <srijs@airpost.net>, Alex Crichton <alex@alexcrichton.com>",
+      "bom-ref": "CycloneDxRef-Component-crc32fast-1.5.0",
+      "description": "Fast, SIMD-accelerated CRC32 (IEEE) checksum computation",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/srijs/rust-crc32fast"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "crc32fast",
+      "purl": "pkg:cargo/crc32fast@1.5.0",
+      "type": "library",
+      "version": "1.5.0"
+    },
+    {
+      "author": "Joshua Liebow-Feeser <joshlf@google.com>, Jack Wrenn <jswrenn@amazon.com>",
+      "bom-ref": "CycloneDxRef-Component-zerocopy-derive-0.8.52",
+      "description": "Custom derive for traits from the zerocopy crate",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/google/zerocopy"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "BSD-2-Clause OR Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "zerocopy-derive",
+      "purl": "pkg:cargo/zerocopy-derive@0.8.52",
+      "type": "application",
+      "version": "0.8.52"
+    },
+    {
+      "author": "David Tolnay <dtolnay@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-zmij-1.0.21",
+      "description": "A double-to-string conversion algorithm based on Schubfach and yy",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/zmij"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dtolnay/zmij"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "zmij",
+      "purl": "pkg:cargo/zmij@1.0.21",
+      "type": "library",
+      "version": "1.0.21"
+    },
+    {
+      "author": "The Rand Project Developers, The Rust Project Developers",
+      "bom-ref": "CycloneDxRef-Component-rand_core-0.6.4",
+      "description": "Core random number generator traits and tools for implementation.\n",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/rand_core"
+        },
+        {
+          "type": "website",
+          "url": "https://rust-random.github.io/book"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/rust-random/rand"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "rand_core",
+      "purl": "pkg:cargo/rand_core@0.6.4",
+      "type": "library",
+      "version": "0.6.4"
+    },
+    {
+      "author": "Erick Tryzelaar <erick.tryzelaar@gmail.com>, David Tolnay <dtolnay@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-serde_core-1.0.228",
+      "description": "Serde traits only, with no support for derive -- use the `serde` crate instead",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/serde_core"
+        },
+        {
+          "type": "website",
+          "url": "https://serde.rs"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/serde-rs/serde"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "serde_core",
+      "purl": "pkg:cargo/serde_core@1.0.228",
+      "type": "library",
+      "version": "1.0.228"
+    },
+    {
+      "author": "David Tolnay <dtolnay@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-syn-2.0.118",
+      "description": "Parser for Rust source code",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/syn"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dtolnay/syn"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "syn",
+      "purl": "pkg:cargo/syn@2.0.118",
+      "type": "library",
+      "version": "2.0.118"
+    },
+    {
+      "author": "Erick Tryzelaar <erick.tryzelaar@gmail.com>, David Tolnay <dtolnay@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-serde_json-1.0.150",
+      "description": "A JSON serialization file format",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/serde_json"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/serde-rs/json"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "serde_json",
+      "purl": "pkg:cargo/serde_json@1.0.150",
+      "type": "library",
+      "version": "1.0.150"
+    },
+    {
+      "author": "The CryptoCorrosion Contributors",
+      "bom-ref": "CycloneDxRef-Component-ppv-lite86-0.2.21",
+      "description": "Cross-platform cryptography-oriented low-level SIMD library.",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/cryptocorrosion/cryptocorrosion"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "ppv-lite86",
+      "purl": "pkg:cargo/ppv-lite86@0.2.21",
+      "type": "library",
+      "version": "0.2.21"
+    },
+    {
+      "author": "Weft contributors",
+      "bom-ref": "CycloneDxRef-Component-weft-abi-0.0.1",
+      "description": "Shared constants and seed plumbing for the Weft DST framework",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/weft-dst/weft"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "weft-abi",
+      "type": "library",
+      "version": "0.0.1"
+    },
+    {
+      "author": "Alex Crichton <alex@alexcrichton.com>, Josh Triplett <josh@joshtriplett.org>",
+      "bom-ref": "CycloneDxRef-Component-flate2-1.1.9",
+      "description": "DEFLATE compression and decompression exposed as Read/BufRead/Write streams.\nSupports miniz_oxide and multiple zlib implementations. Supports zlib, gzip,\nand raw deflate streams.\n",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/flate2"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/rust-lang/flate2-rs"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/rust-lang/flate2-rs"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "flate2",
+      "purl": "pkg:cargo/flate2@1.1.9",
+      "type": "library",
+      "version": "1.1.9"
+    },
+    {
+      "author": "The Rust Project Developers",
+      "bom-ref": "CycloneDxRef-Component-libc-0.2.186",
+      "description": "Raw FFI bindings to platform libraries like libc.",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/rust-lang/libc"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "libc",
+      "purl": "pkg:cargo/libc@0.2.186",
+      "type": "library",
+      "version": "0.2.186"
+    },
+    {
+      "author": "David Tolnay <dtolnay@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-itoa-1.0.18",
+      "description": "Fast integer primitive to string conversion",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/itoa"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dtolnay/itoa"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "itoa",
+      "purl": "pkg:cargo/itoa@1.0.18",
+      "type": "library",
+      "version": "1.0.18"
+    },
+    {
+      "author": "Weft contributors",
+      "bom-ref": "CycloneDxRef-Component-weft-replay-0.0.1",
+      "description": "Event-log recording, deterministic replay, and invariant checking for Weft",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/weft-dst/weft"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "weft-replay",
+      "type": "library",
+      "version": "0.0.1"
+    },
+    {
+      "author": "David Tolnay <dtolnay@gmail.com>",
+      "bom-ref": "CycloneDxRef-Component-unicode-ident-1.0.24",
+      "description": "Determine whether characters have the XID_Start or XID_Continue properties according to Unicode Standard Annex #31",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/unicode-ident"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dtolnay/unicode-ident"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "(MIT OR Apache-2.0) AND Unicode-3.0"
+        }
+      ],
+      "name": "unicode-ident",
+      "purl": "pkg:cargo/unicode-ident@1.0.24",
+      "type": "library",
+      "version": "1.0.24"
+    },
+    {
+      "author": "The Rand Project Developers, The Rust Project Developers, The CryptoCorrosion Contributors",
+      "bom-ref": "CycloneDxRef-Component-rand_chacha-0.3.1",
+      "description": "ChaCha random number generator\n",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/rand_chacha"
+        },
+        {
+          "type": "website",
+          "url": "https://rust-random.github.io/book"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/rust-random/rand"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "rand_chacha",
+      "purl": "pkg:cargo/rand_chacha@0.3.1",
+      "type": "library",
+      "version": "0.3.1"
+    },
+    {
+      "author": "Marvin Countryman <me@maar.vin>",
+      "bom-ref": "CycloneDxRef-Component-simd-adler32-0.3.9",
+      "description": "A SIMD-accelerated Adler-32 hash algorithm implementation.",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/mcountryman/simd-adler32"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "simd-adler32",
+      "purl": "pkg:cargo/simd-adler32@0.3.9",
+      "type": "library",
+      "version": "0.3.9"
+    },
+    {
+      "author": "Jonas Schievink <jonasschievink@gmail.com>, oyvindln <oyvindln@users.noreply.github.com>",
+      "bom-ref": "CycloneDxRef-Component-adler2-2.0.1",
+      "description": "A simple clean-room implementation of the Adler-32 checksum",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/adler2/"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/oyvindln/adler2"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "0BSD OR MIT OR Apache-2.0"
+        }
+      ],
+      "name": "adler2",
+      "purl": "pkg:cargo/adler2@2.0.1",
+      "type": "library",
+      "version": "2.0.1"
+    },
+    {
+      "author": "David Tolnay <dtolnay@gmail.com>, Alex Crichton <alex@alexcrichton.com>",
+      "bom-ref": "CycloneDxRef-Component-proc-macro2-1.0.106",
+      "description": "A substitute implementation of the compiler's `proc_macro` API to decouple token-based libraries from the procedural macro use case.",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/proc-macro2"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dtolnay/proc-macro2"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "proc-macro2",
+      "purl": "pkg:cargo/proc-macro2@1.0.106",
+      "type": "library",
+      "version": "1.0.106"
+    },
+    {
+      "author": "Weft contributors",
+      "bom-ref": "CycloneDxRef-Component-weft-net-0.0.1",
+      "description": "Weft network simulation: wire protocol, seeded fault model, and broker",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/weft-dst/weft"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "weft-net",
+      "type": "library",
+      "version": "0.0.1"
+    }
+  ],
+  "dependencies": [
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-quote-1.0.46",
+        "CycloneDxRef-Component-unicode-ident-1.0.24",
+        "CycloneDxRef-Component-proc-macro2-1.0.106"
+      ],
+      "ref": "CycloneDxRef-Component-syn-2.0.118"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-thiserror-impl-1.0.69"
+      ],
+      "ref": "CycloneDxRef-Component-thiserror-1.0.69"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-serde_derive-1.0.228",
+        "CycloneDxRef-Component-serde_core-1.0.228"
+      ],
+      "ref": "CycloneDxRef-Component-serde-1.0.228"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-quote-1.0.46",
+        "CycloneDxRef-Component-syn-2.0.118",
+        "CycloneDxRef-Component-proc-macro2-1.0.106"
+      ],
+      "ref": "CycloneDxRef-Component-serde_derive-1.0.228"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-weft-replay-0.0.1"
+      ],
+      "ref": "CycloneDxRef-Component-weft-raft-0.0.1"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-simd-adler32-0.3.9",
+        "CycloneDxRef-Component-adler2-2.0.1"
+      ],
+      "ref": "CycloneDxRef-Component-miniz_oxide-0.8.9"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-cfg-if-1.0.4"
+      ],
+      "ref": "CycloneDxRef-Component-crc32fast-1.5.0"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-proc-macro2-1.0.106"
+      ],
+      "ref": "CycloneDxRef-Component-quote-1.0.46"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-zerocopy-0.8.52"
+      ],
+      "ref": "CycloneDxRef-Component-ppv-lite86-0.2.21"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-syn-2.0.118",
+        "CycloneDxRef-Component-quote-1.0.46",
+        "CycloneDxRef-Component-proc-macro2-1.0.106"
+      ],
+      "ref": "CycloneDxRef-Component-zerocopy-derive-0.8.52"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-zerocopy-derive-0.8.52"
+      ],
+      "ref": "CycloneDxRef-Component-zerocopy-0.8.52"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-weft-fuzz-0.0.1",
+        "CycloneDxRef-Component-weft-scenario-0.0.1",
+        "CycloneDxRef-Component-serde_json-1.0.150",
+        "CycloneDxRef-Component-weft-net-0.0.1",
+        "CycloneDxRef-Component-weft-abi-0.0.1",
+        "CycloneDxRef-Component-libc-0.2.186",
+        "CycloneDxRef-Component-weft-replay-0.0.1"
+      ],
+      "ref": "CycloneDxRef-Component-weft-dst-0.0.1"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-rand_core-0.6.4",
+        "CycloneDxRef-Component-rand_chacha-0.3.1",
+        "CycloneDxRef-Component-weft-abi-0.0.1"
+      ],
+      "ref": "CycloneDxRef-Component-weft-net-0.0.1"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-weft-replay-0.0.1"
+      ],
+      "ref": "CycloneDxRef-Component-weft-chord-0.0.1"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-serde_derive-1.0.228"
+      ],
+      "ref": "CycloneDxRef-Component-serde_core-1.0.228"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-weft-net-0.0.1",
+        "CycloneDxRef-Component-serde-1.0.228",
+        "CycloneDxRef-Component-weft-replay-0.0.1",
+        "CycloneDxRef-Component-weft-abi-0.0.1",
+        "CycloneDxRef-Component-serde_json-1.0.150"
+      ],
+      "ref": "CycloneDxRef-Component-weft-fuzz-0.0.1"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-thiserror-1.0.69",
+        "CycloneDxRef-Component-serde_json-1.0.150",
+        "CycloneDxRef-Component-serde-1.0.228"
+      ],
+      "ref": "CycloneDxRef-Component-weft-scenario-0.0.1"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-flate2-1.1.9",
+        "CycloneDxRef-Component-serde_json-1.0.150",
+        "CycloneDxRef-Component-serde-1.0.228",
+        "CycloneDxRef-Component-weft-net-0.0.1"
+      ],
+      "ref": "CycloneDxRef-Component-weft-replay-0.0.1"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-weft-net-0.0.1",
+        "CycloneDxRef-Component-rand_core-0.6.4",
+        "CycloneDxRef-Component-weft-abi-0.0.1",
+        "CycloneDxRef-Component-rand_chacha-0.3.1",
+        "CycloneDxRef-Component-libc-0.2.186"
+      ],
+      "ref": "CycloneDxRef-Component-weft-shim-0.0.1"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-itoa-1.0.18",
+        "CycloneDxRef-Component-zmij-1.0.21",
+        "CycloneDxRef-Component-serde_core-1.0.228",
+        "CycloneDxRef-Component-serde-1.0.228",
+        "CycloneDxRef-Component-memchr-2.8.2"
+      ],
+      "ref": "CycloneDxRef-Component-serde_json-1.0.150"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-crc32fast-1.5.0",
+        "CycloneDxRef-Component-miniz_oxide-0.8.9"
+      ],
+      "ref": "CycloneDxRef-Component-flate2-1.1.9"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-proc-macro2-1.0.106",
+        "CycloneDxRef-Component-syn-2.0.118",
+        "CycloneDxRef-Component-quote-1.0.46"
+      ],
+      "ref": "CycloneDxRef-Component-thiserror-impl-1.0.69"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-unicode-ident-1.0.24"
+      ],
+      "ref": "CycloneDxRef-Component-proc-macro2-1.0.106"
+    },
+    {
+      "dependsOn": [
+        "CycloneDxRef-Component-rand_core-0.6.4",
+        "CycloneDxRef-Component-ppv-lite86-0.2.21"
+      ],
+      "ref": "CycloneDxRef-Component-rand_chacha-0.3.1"
+    }
+  ],
+  "metadata": {
+    "authors": [
+      {
+        "name": "Arnav Singhal"
+      }
+    ],
+    "component": {
+      "components": [
+        {
+          "author": "Weft contributors",
+          "bom-ref": "CycloneDxRef-Component-weft-abi-0.0.1",
+          "description": "Shared constants and seed plumbing for the Weft DST framework",
+          "externalReferences": [
+            {
+              "type": "vcs",
+              "url": "https://github.com/weft-dst/weft"
+            }
+          ],
+          "licenses": [
+            {
+              "expression": "MIT OR Apache-2.0"
+            }
+          ],
+          "name": "weft-abi",
+          "type": "library",
+          "version": "0.0.1"
+        },
+        {
+          "author": "Weft contributors",
+          "bom-ref": "CycloneDxRef-Component-weft-chord-0.0.1",
+          "description": "Chord ring-maintenance invariant checker over Weft recordings (Phase 7 case study)",
+          "externalReferences": [
+            {
+              "type": "vcs",
+              "url": "https://github.com/weft-dst/weft"
+            }
+          ],
+          "licenses": [
+            {
+              "expression": "MIT OR Apache-2.0"
+            }
+          ],
+          "name": "weft-chord",
+          "type": "library",
+          "version": "0.0.1"
+        },
+        {
+          "author": "Weft contributors",
+          "bom-ref": "CycloneDxRef-Component-weft-dst-0.0.1",
+          "description": "Deterministic simulation testing for unmodified Linux binaries",
+          "externalReferences": [
+            {
+              "type": "vcs",
+              "url": "https://github.com/weft-dst/weft"
+            }
+          ],
+          "licenses": [
+            {
+              "expression": "MIT OR Apache-2.0"
+            }
+          ],
+          "name": "weft-dst",
+          "type": "library",
+          "version": "0.0.1"
+        },
+        {
+          "author": "Weft contributors",
+          "bom-ref": "CycloneDxRef-Component-weft-fuzz-0.0.1",
+          "description": "Seed fuzzing and failure shrinking for Weft",
+          "externalReferences": [
+            {
+              "type": "vcs",
+              "url": "https://github.com/weft-dst/weft"
+            }
+          ],
+          "licenses": [
+            {
+              "expression": "MIT OR Apache-2.0"
+            }
+          ],
+          "name": "weft-fuzz",
+          "type": "library",
+          "version": "0.0.1"
+        },
+        {
+          "author": "Weft contributors",
+          "bom-ref": "CycloneDxRef-Component-weft-net-0.0.1",
+          "description": "Weft network simulation: wire protocol, seeded fault model, and broker",
+          "externalReferences": [
+            {
+              "type": "vcs",
+              "url": "https://github.com/weft-dst/weft"
+            }
+          ],
+          "licenses": [
+            {
+              "expression": "MIT OR Apache-2.0"
+            }
+          ],
+          "name": "weft-net",
+          "type": "library",
+          "version": "0.0.1"
+        },
+        {
+          "author": "Weft contributors",
+          "bom-ref": "CycloneDxRef-Component-weft-raft-0.0.1",
+          "description": "Raft ElectionSafety checker over Weft recordings (Phase 7 second target)",
+          "externalReferences": [
+            {
+              "type": "vcs",
+              "url": "https://github.com/weft-dst/weft"
+            }
+          ],
+          "licenses": [
+            {
+              "expression": "MIT OR Apache-2.0"
+            }
+          ],
+          "name": "weft-raft",
+          "type": "library",
+          "version": "0.0.1"
+        },
+        {
+          "author": "Weft contributors",
+          "bom-ref": "CycloneDxRef-Component-weft-replay-0.0.1",
+          "description": "Event-log recording, deterministic replay, and invariant checking for Weft",
+          "externalReferences": [
+            {
+              "type": "vcs",
+              "url": "https://github.com/weft-dst/weft"
+            }
+          ],
+          "licenses": [
+            {
+              "expression": "MIT OR Apache-2.0"
+            }
+          ],
+          "name": "weft-replay",
+          "type": "library",
+          "version": "0.0.1"
+        },
+        {
+          "author": "Weft contributors",
+          "bom-ref": "CycloneDxRef-Component-weft-scenario-0.0.1",
+          "description": "Fault-scenario DSL (JSON) parsing and validation for the Weft DST framework",
+          "externalReferences": [
+            {
+              "type": "vcs",
+              "url": "https://github.com/weft-dst/weft"
+            }
+          ],
+          "licenses": [
+            {
+              "expression": "MIT OR Apache-2.0"
+            }
+          ],
+          "name": "weft-scenario",
+          "type": "library",
+          "version": "0.0.1"
+        },
+        {
+          "author": "Weft contributors",
+          "bom-ref": "CycloneDxRef-Component-weft-shim-0.0.1",
+          "description": "LD_PRELOAD determinism shim for the Weft DST framework",
+          "externalReferences": [
+            {
+              "type": "vcs",
+              "url": "https://github.com/weft-dst/weft"
+            }
+          ],
+          "licenses": [
+            {
+              "expression": "MIT OR Apache-2.0"
+            }
+          ],
+          "name": "weft-shim",
+          "type": "application",
+          "version": "0.0.1"
+        }
+      ],
+      "name": "weft-dst-app",
+      "type": "application"
+    },
+    "timestamp": "2026-07-09T14:36:05.717Z",
+    "tools": [
+      {
+        "name": "cargo-sbom",
+        "version": "0.10.0"
+      }
+    ]
+  },
+  "serialNumber": "urn:uuid:6512926e-1c46-4474-a593-5caa18100a87",
+  "specVersion": "1.4",
+  "version": 1
+}
