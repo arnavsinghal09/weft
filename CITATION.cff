@@ -14,8 +14,8 @@ type: software
 license:
   - MIT
   - Apache-2.0
-repository-code: "https://github.com/weft-dst/weft"
-url: "https://github.com/weft-dst/weft"
+repository-code: "https://github.com/arnavsinghal09/weft"
+url: "https://github.com/arnavsinghal09/weft"
 authors:
   - name: "Weft contributors"
 keywords:
@@ -27,7 +27,7 @@ keywords:
   - testing
 identifiers:
   - type: url
-    value: "https://github.com/weft-dst/weft"
+    value: "https://github.com/arnavsinghal09/weft"
     description: Source repository
 references:
   - type: thesis
@@ -42,7 +42,7 @@ references:
       ElectionSafety edge case (Fig. 3.2) reproduced by the Raft case study;
       see docs/case-study/RAFT_VALIDATION.md.
   - type: article
-    title: "How to Not Prove Your Distributed Algorithm"
+    title: "Using Lightweight Modeling to Understand Chord"
     authors:
       - family-names: Zave
         given-names: Pamela
