@@ -47,6 +47,10 @@ pub const ENV_NODE_ID: &str = "WEFT_NODE_ID";
 /// `weft_net::config`); consumed by the broker, not the shim.
 pub const ENV_NET: &str = "WEFT_NET";
 
+/// Environment variable (`"1"`) making `fsync`/`fdatasync` return success
+/// without persisting — the fsync-lies fault. See docs/fault-model.md.
+pub const ENV_FSYNC_LIES: &str = "WEFT_FSYNC_LIES";
+
 /// Interleaving-selection strategy for the deterministic scheduler.
 ///
 /// Both are fully deterministic functions of the run seed; they differ in

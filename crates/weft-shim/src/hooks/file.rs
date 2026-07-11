@@ -20,7 +20,7 @@ static BYTES_WRITTEN: AtomicU64 = AtomicU64::new(0);
 /// Hooks must not call `std::env::var` per call: it allocates.
 fn fsync_lies() -> bool {
     static FSYNC_LIES: OnceLock<bool> = OnceLock::new();
-    *FSYNC_LIES.get_or_init(|| std::env::var("WEFT_FSYNC_LIES").is_ok_and(|v| v == "1"))
+    *FSYNC_LIES.get_or_init(|| std::env::var(weft_abi::ENV_FSYNC_LIES).is_ok_and(|v| v == "1"))
 }
 
 /// Deterministic `write(2)`: track bytes written for ENOSPC injection.
