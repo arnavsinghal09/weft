@@ -6,7 +6,7 @@ Reverification of core Weft DST properties from Phase 1 through Phase 6, conduct
 
 ✓ **Phase 1: Seed Determinism** — Entropy program with same seed produces byte-identical outputs. Verified: seed 42 ×2 hash-match, seed 43 differs.
 
-✓ **Phase 2: Race Detection** — Weft detects data races when schedule amplifies concurrency. Race control achieved via network latency tuning (uniform:0-1 triggers the race; higher latencies avoid it). Harness properly classifies verdicts.
+✓ **Phase 2: Race Detection** — Weft detects data races when the schedule amplifies concurrency. Race control is via the *scheduler* seed (`race_bank.c` uses no network: seed 3 triggers the lost update, seed 2 avoids it — docs/scheduling-model.md, pinned by `crates/weft-dst/tests/sched_e2e.rs`). Harness properly classifies verdicts.
 
 ✓ **Phase 3: Message Delivery & Partitions** — Broker enforces linearization order and models network faults (latency, loss, partitions). Partition heal verified via scenario events `activate_partition`/`clear_partition` in weft-net broker integration tests.
 
@@ -50,7 +50,7 @@ on Linux).
 
 **Phase 3 Limitation (Live-Run Drift):** Cross-process arrival order is re-rolled on each live execution (OS-scheduled, non-deterministic). Campaign verdicts are statistical, not seed-for-seed. Recording replay is identical (Phase 5), but two consecutive live runs of the same seed may reach different verdicts. Documented as intentional and irreducible without kernel-level determinism enforcement.
 
-**Phase 4 Gap (Fuzzer Target):** Originally planned as `cargo +nightly fuzz 10K` — never delivered due to Fuzz compiler / rustc mismatch. Replaced with deterministic parser_robustness sweep (10,000 mutated inputs, SplitMix64 PRNG, no LLM). Both achieve the goal (panic-free parser), with the deterministic version being more reproducible. Classified as **doc-gap** (gap documented, not hidden).
+**Phase 4 Gap (Fuzzer Target):** Originally planned as `cargo +nightly fuzz 10K` — never delivered because cargo-fuzz requires a nightly toolchain and this project pins stable Rust. Replaced with deterministic parser_robustness sweep (10,000 mutated inputs, SplitMix64 PRNG, no LLM). Both achieve the goal (panic-free parser), with the deterministic version being more reproducible. Classified as **doc-gap** (gap documented, not hidden).
 
 **Phase 6 Sanitizers (Guest Clocks):** ASan/UBSan run cleanly on the shim. TSan positive control works. Per-operation latency percentiles cannot be measured in-guest (clocks are virtual under the shim); broker-side instrumentation is a recommended future optimization for Phase 8 (documented in SCALABILITY_RECOMMENDATIONS.md).
 

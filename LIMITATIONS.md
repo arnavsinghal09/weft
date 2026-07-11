@@ -76,8 +76,9 @@ them precisely:
 **(a) Replay of a recording is byte-exact. Always.**
 A weft-log plus the seed reconstructs the run: `weft replay` re-executes
 against the same pure decision core and verifies an identical stream digest.
-Proven 10× in CI on every platform. This guarantee has no known leaks —
-the log *is* the linearization.
+Proven 10× in CI (Linux); verified manually on macOS during development —
+CI runs `ubuntu-latest` only. This guarantee has no known leaks — the log
+*is* the linearization.
 
 **(b) Single-process runs (no `--net`) are output-deterministic** given the
 covered surface: same seed ⇒ same timestamps, same random bytes, same thread

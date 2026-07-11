@@ -87,43 +87,38 @@ orchestration) on top.
 Toolchain: stable Rust, edition 2021, MSRV 1.84 (recorded in
 `workspace.package.rust-version`; CI pins nothing newer than stable).
 
-## Directory layout (full eventual shape)
+## Directory layout (as built)
 
-Cargo workspace. Only `crates/weft-dst` exists today; the rest are reserved
-homes so later phases never renegotiate structure:
+Cargo workspace. The Phase-0 plan reserved separate `weft-sched`,
+`weft-faults`, and `weft-harness` crates; in practice the scheduler landed
+inside the shim (it must live in the target process), fault mechanisms
+landed in `weft-net`/`weft-scenario`/the shim's file hooks, and the
+"harness" role became the two protocol-checker crates:
 
 ```
 weft-dst-app/
 ├── Cargo.toml              # workspace root (lints, shared package metadata)
 ├── crates/
-│   ├── weft-dst/           # TODAY: CLI + orchestrator. `weft` binary lives here.
-│   │                       #   Owns run configuration, seed management, and
-│   │                       #   launching targets under the shim.
-│   ├── weft-shim/          # Phase 1: cdylib LD_PRELOAD shim. libc-compatible
-│   │                       #   `#[no_mangle]` symbols; talks to the orchestrator
-│   │                       #   over a control channel. NO std beyond what's safe
-│   │                       #   inside interposed calls.
-│   ├── weft-abi/           # Phase 1: shared wire types between shim and
-│   │                       #   orchestrator (kept dependency-free; the shim
-│   │                       #   links it into the target process).
-│   ├── weft-sched/         # Phase 2: deterministic scheduler — decides which
-│   │                       #   intercepted thread proceeds; virtual clock; PRNG.
-│   ├── weft-net/           # Phase 3: simulated network — intercepted sockets
-│   │                       #   routed through an in-memory fabric (latency,
-│   │                       #   partitions, reorder, duplication).
-│   ├── weft-faults/        # Phase 4: fault engine — schedules crashes, disk
-│   │                       #   errors, ENOSPC/EIO injection, clock skew.
-│   ├── weft-replay/        # Phase 5: recording & replay — trace format,
-│   │                       #   seed→schedule reproduction, divergence detection.
-│   ├── weft-fuzz/          # Phase 6: schedule/fault fuzzer — mutates seeds and
-│   │                       #   schedules, coverage-ish feedback, corpus mgmt.
-│   └── weft-harness/       # Phases 7–8: real-world integration harness —
-│                           #   runs actual systems (e.g. a KV store, a raft
-│                           #   impl) under Weft; regression suites; examples.
-├── tests/                  # cross-crate end-to-end tests (real binaries under
-│                           #   the shim; Linux-only, gated by cfg/CI matrix)
-├── examples/               # small target programs used in docs and e2e tests
-├── docs/                   # design docs, one per subsystem, written per phase
+│   ├── weft-dst/           # CLI (`weft` binary): run/replay/fuzz commands,
+│   │                       #   cluster orchestration, event scheduler.
+│   ├── weft-shim/          # cdylib LD_PRELOAD shim: libc hooks (time, rand,
+│   │                       #   devices, sockets, file I/O, pthreads), the
+│   │                       #   deterministic scheduler, virtual clock, RNG.
+│   ├── weft-abi/           # env-var contract + seed parsing shared by CLI
+│   │                       #   and shim (dependency-free).
+│   ├── weft-net/           # simulated network: seeded broker, pure decision
+│   │                       #   core, fault model, wire protocol, net spec.
+│   ├── weft-scenario/      # JSON fault-scenario DSL: parsing + validation.
+│   ├── weft-replay/        # weft-log format, recorder, byte-exact replayer,
+│   │                       #   invariant API.
+│   ├── weft-fuzz/          # seed sweeps + ddmin shrinking to minimal
+│   │                       #   reproducers.
+│   ├── weft-chord/         # Chord case study: invariant checker, tracer,
+│   │                       #   stateright cross-validation oracle.
+│   └── weft-raft/          # Raft case study: ElectionSafety checker + oracle.
+├── examples/               # C target programs (incl. chord/, raft/, fuzz/)
+├── scripts/                # campaign drivers, benchmarks, sanitizer runs
+├── docs/                   # design docs per subsystem + case-study evidence
 └── .github/workflows/      # CI (see below)
 ```
 
