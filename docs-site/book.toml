@@ -1,0 +1,17 @@
+[book]
+title = "Weft"
+description = "Deterministic simulation testing for unmodified Linux binaries"
+authors = ["Weft contributors"]
+language = "en"
+src = "src"
+
+[output.html]
+git-repository-url = "https://github.com/arnavsinghal09/weft"
+git-repository-icon = "fab-github"
+edit-url-template = "https://github.com/arnavsinghal09/weft/edit/main/{path}"
+default-theme = "light"
+preferred-dark-theme = "navy"
+
+[output.html.fold]
+enable = true
+level = 1

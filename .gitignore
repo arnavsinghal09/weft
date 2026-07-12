@@ -2,6 +2,9 @@
 /target/
 **/*.rs.bk
 
+# mdBook build output (built by CI, deployed to GitHub Pages; never commit)
+docs-site/book/
+
 # Graphify knowledge-graph output (regenerated per machine; never commit)
 graphify-out/
 
