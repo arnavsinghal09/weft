@@ -11,9 +11,11 @@ and ddmin-shrinks violations to 1-minimal reproducers.
 ## Real state (as of 2026-07-12)
 
 - **All nine phases (0–9) implemented and validated** — PROJECT_NOTES.md
-  "Phase status". Version 0.0.1, unreleased, **not published to crates.io**;
-  CHANGELOG.md is one big `[Unreleased]` section. main is ~50 commits ahead
-  of origin, unpushed.
+  "Phase status". Version 0.0.1, **published to crates.io 2026-07-12**
+  (all 6 crates: weft-dst, weft-abi, weft-net, weft-scenario, weft-replay,
+  weft-fuzz); docs site live at https://arnavsinghal09.github.io/weft/;
+  CHANGELOG.md is one big `[Unreleased]` section. main is pushed to
+  github.com/arnavsinghal09/weft.
 - Validated against real formally-proven bugs, not synthetic examples:
   Chord ring-maintenance flaw (57→41→8 / 500 seeds across fix levels), Raft
   votedFor-persistence double-election (3/300 buggy, 0/300 fixed) —

@@ -74,11 +74,17 @@ fault, a recorded/replayed run, and the fuzzer, is in the
 
 ## Install
 
-From a clone (not yet published to crates.io):
+From [crates.io](https://crates.io/crates/weft-dst):
+
+```sh
+cargo install weft-dst                   # the `weft` binary
+```
+
+The shim is built from a clone (it is a cdylib, not a cargo-installable
+binary):
 
 ```sh
 git clone https://github.com/arnavsinghal09/weft && cd weft
-cargo install --path crates/weft-dst     # the `weft` binary
 cargo build --release -p weft-shim       # libweft_shim.so (Linux only)
 ```
 
@@ -117,6 +123,9 @@ measurable blind spot, are in
 [docs/case-study/CREDIBILITY_SUMMARY.md](docs/case-study/CREDIBILITY_SUMMARY.md).
 
 ## Documentation
+
+Rendered docs site: **<https://arnavsinghal09.github.io/weft/>** — the
+documents below as a browsable book.
 
 | document | contents |
 |---|---|
