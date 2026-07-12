@@ -39,6 +39,16 @@ host A (master)                      host B                    host C
 
 ## The logical clock protocol
 
+> **Superseded.** The merge-on-response rule below was implemented, broke
+> same-seed determinism (broker `vt` advances in real arrival order, and
+> merging it fed OS scheduling into guest-visible time), and was reverted —
+> the shim now sends `local_vt` but ignores response `vt` (CHANGELOG,
+> "Added (multi-host groundwork)"). The replacement — seed-derived windowed
+> sealing with frontier-gated assignment — is specified in
+> [MULTI_HOST_CLOCK_PROTOCOL.md](MULTI_HOST_CLOCK_PROTOCOL.md) and is
+> design-only. This section is kept as the historical record the
+> post-mortem refers to.
+
 **Problem.** Each shimmed process has a virtual clock (Phase 1): monotonic
 ns, advancing on reads and sleeps, independent per process. On one machine
 that independence is invisible; across hosts, causally-related events could

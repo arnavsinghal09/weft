@@ -123,6 +123,15 @@ quickstart. Know its edges before you rely on it:
 
 ### Added (multi-host groundwork)
 
+- Design spec for seed-derived cross-host event ordering:
+  `docs/MULTI_HOST_CLOCK_PROTOCOL.md` — frontier-gated virtual-time
+  windows (conservative-PDES style), a corrected vclock merge rule
+  (deliveries carry broker-assigned seed-derived times, never
+  arrival-ordered ones), a proof sketch by induction over windows,
+  buffering trade-offs, deterministic failure handling, and explicit open
+  questions. Supersedes the reverted merge-on-response clock section of
+  MULTI_HOST_ARCHITECTURE.md. Design only — no implementation.
+
 - Broker TCP transport (`Broker::bind_tcp`) alongside the Unix socket, with
   the same wire protocol and handler; `ToBroker` operations now carry the
   sender's local virtual time and every `FromBroker` reply carries the

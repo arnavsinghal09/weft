@@ -18,6 +18,7 @@
 - [Recording format](recording-format.md)
 - [Fuzzing & shrinking](fuzzing.md)
 - [Multi-host architecture](multi-host-architecture.md)
+- [Multi-host clock protocol (design)](multi-host-clock-protocol.md)
 - [Process orchestration](process-orchestration.md)
 
 # Case study: rediscovering real bugs
