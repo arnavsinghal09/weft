@@ -79,13 +79,31 @@ pub enum SeqError {
 struct ConnState {
     host_id: u32,
     node_id: u32,
-    /// F(g): the largest virtual time this connection has promised to stay at
-    /// or above for future ops. `INFINITY` once it blocks, exits, or closes.
+    /// The real lower bound on this connection's future `local_vt` — its LVT
+    /// as last observed. Kept even while blocked, so a woken receiver resumes
+    /// from `max(this, deliv_vt)` rather than losing its place.
     frontier: u64,
+    /// True while the guest is parked in a blocking recv: it will emit nothing
+    /// until the broker delivers to it, so it does not stall sealing (its
+    /// effective frontier is `INFINITY`).
+    blocked: bool,
     /// Next program-order index to hand out.
     next_seq: u64,
-    /// Whether this connection still counts toward the sealing quorum.
+    /// Whether this connection still counts toward the sealing quorum (false
+    /// once closed/exited — effective frontier `INFINITY`).
     live: bool,
+}
+
+impl ConnState {
+    /// The value this connection contributes to the sealing quorum: its real
+    /// lower bound, or `INFINITY` when it cannot emit (blocked, or not live).
+    fn effective_frontier(&self) -> u64 {
+        if self.live && !self.blocked {
+            self.frontier
+        } else {
+            INFINITY
+        }
+    }
 }
 
 /// The windowed sequencer. One per broker (multi-host mode).
@@ -125,6 +143,7 @@ impl WindowSequencer {
                 host_id,
                 node_id,
                 frontier: 0,
+                blocked: false,
                 next_seq: 0,
                 live: true,
             },
@@ -214,22 +233,35 @@ impl WindowSequencer {
         Ok(())
     }
 
-    /// Release a connection's frontier to `INFINITY` because it entered a
-    /// blocking receive: it will emit nothing until the broker delivers to it
-    /// (§4.2, release-on-block). Reversible only by the delivery that wakes it,
-    /// which re-declares a concrete frontier via its next op.
-    pub fn block(&mut self, conn: ConnId) {
+    /// Mark a connection parked in a blocking receive at LVT `at_vt`: it
+    /// leaves the sealing quorum (effective frontier `INFINITY`) but keeps its
+    /// lower bound so [`Self::wake`] can resume it correctly (§4.2,
+    /// release-on-block). `at_vt` advances the lower bound monotonically.
+    pub fn block(&mut self, conn: ConnId, at_vt: u64) {
         if let Some(c) = self.conns.get_mut(&conn) {
-            c.frontier = INFINITY;
+            c.frontier = c.frontier.max(at_vt);
+            c.blocked = true;
         }
     }
 
-    /// A connection closed (guest exited / TCP hangup): frontier `INFINITY`
-    /// forever and it leaves the sealing quorum. Its already-buffered ops
-    /// still get assigned in their windows.
+    /// Wake a blocked connection because a delivery at `deliv_vt` was popped
+    /// for it: it rejoins the quorum with its LVT advanced to
+    /// `max(prev, deliv_vt)` (the Lamport merge the guest itself performs).
+    /// A no-op on a connection that was not blocked.
+    pub fn wake(&mut self, conn: ConnId, deliv_vt: u64) {
+        if let Some(c) = self.conns.get_mut(&conn) {
+            if c.blocked {
+                c.blocked = false;
+                c.frontier = c.frontier.max(deliv_vt);
+            }
+        }
+    }
+
+    /// A connection closed (guest exited / TCP hangup): it leaves the sealing
+    /// quorum forever (effective frontier `INFINITY`). Its already-buffered
+    /// ops still get assigned in their windows.
     pub fn close(&mut self, conn: ConnId) {
         if let Some(c) = self.conns.get_mut(&conn) {
-            c.frontier = INFINITY;
             c.live = false;
         }
     }
@@ -247,8 +279,7 @@ impl WindowSequencer {
         let min_frontier = self
             .conns
             .values()
-            .filter(|c| c.live)
-            .map(|c| c.frontier)
+            .map(ConnState::effective_frontier)
             .min()
             .unwrap_or(INFINITY);
         let new_horizon = if min_frontier == INFINITY {
@@ -285,7 +316,7 @@ impl WindowSequencer {
             && self
                 .conns
                 .values()
-                .all(|c| !c.live || c.frontier == INFINITY)
+                .all(|c| c.effective_frontier() == INFINITY)
     }
 }
 
@@ -458,9 +489,34 @@ mod tests {
             .unwrap();
         s.declare_frontier(0, 1000).unwrap();
         assert!(s.seal().is_empty(), "receiver at frontier 0 blocks sealing");
-        s.block(1); // receiver enters blocking recv → frontier +∞
+        s.block(1, 0); // receiver enters blocking recv -> effective frontier +inf
         let out = s.seal();
         assert_eq!(out.len(), 1, "release-on-block did not free the window");
+    }
+
+    #[test]
+    fn wake_restores_the_quorum_at_the_delivery_time() {
+        // A blocked receiver does not bound the horizon; once woken by a
+        // delivery at 250 it rejoins the quorum at 250, bounding sealing to
+        // window floor(250/100) = 200.
+        let width = 100;
+        let mut s = WindowSequencer::new(width);
+        s.register(0, 0, 0); // sender
+        s.register(1, 1, 1); // receiver
+        s.block(1, 40);
+        s.declare_frontier(0, 10_000).unwrap();
+        s.seal();
+        // Blocked receiver does not stall sealing: the sender alone bounds it.
+        assert_eq!(s.horizon(), 10_000, "blocked receiver wrongly stalled sealing");
+
+        let mut s2 = WindowSequencer::new(width);
+        s2.register(0, 0, 0);
+        s2.register(1, 1, 1);
+        s2.block(1, 40);
+        s2.wake(1, 250);
+        s2.declare_frontier(0, 10_000).unwrap();
+        s2.seal();
+        assert_eq!(s2.horizon(), 200, "woken receiver must bound the horizon");
     }
 
     #[test]

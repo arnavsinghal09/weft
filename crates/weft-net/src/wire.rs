@@ -63,6 +63,12 @@ pub enum ToBroker {
         blocking: bool,
         local_vt: u64,
     },
+    /// A frontier declaration with no datagram (the windowed multi-host
+    /// protocol, docs/MULTI_HOST_CLOCK_PROTOCOL.md §4.2): "I will emit nothing
+    /// below `local_vt`." Sent when the guest's clock advances past a window
+    /// boundary without any network op, so idle guests cannot stall sealing.
+    /// Ignored by the non-windowed broker.
+    Frontier { local_vt: u64 },
 }
 
 /// Messages the broker sends back to a node's shim.
@@ -166,6 +172,10 @@ impl ToBroker {
                 b.push(u8::from(*blocking));
                 put_u64(&mut b, *local_vt);
             }
+            Self::Frontier { local_vt } => {
+                b.push(5);
+                put_u64(&mut b, *local_vt);
+            }
         }
         b
     }
@@ -185,6 +195,9 @@ impl ToBroker {
             4 => Self::Recv {
                 addr: c.addr()?,
                 blocking: c.take(1)?[0] != 0,
+                local_vt: c.u64()?,
+            },
+            5 => Self::Frontier {
                 local_vt: c.u64()?,
             },
             _ => return None,

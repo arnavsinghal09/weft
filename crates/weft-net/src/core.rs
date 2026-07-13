@@ -185,6 +185,25 @@ impl Core {
         }
     }
 
+    /// Pop the next datagram for `conn` only if its delivery time is strictly
+    /// below `horizon` (the windowed sequencer's sealed horizon): a delivery
+    /// scheduled for a not-yet-sealed window is withheld, so visibility never
+    /// depends on how early the send was admitted in real time (design doc
+    /// §4.3, arrival-gated recv). `horizon == u64::MAX` is unbounded and
+    /// behaves exactly like [`Self::recv`].
+    pub fn recv_before(&mut self, conn: u64, horizon: u64) -> RecvResult {
+        let deliverable = self
+            .queues
+            .get(&conn)
+            .and_then(BinaryHeap::peek)
+            .is_some_and(|p| p.deliv < horizon);
+        if deliverable {
+            self.recv(conn)
+        } else {
+            RecvResult::Empty
+        }
+    }
+
     /// Whether `conn` currently has a deliverable datagram (without popping).
     #[must_use]
     pub fn has_pending(&self, conn: u64) -> bool {

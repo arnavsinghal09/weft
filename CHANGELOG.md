@@ -151,7 +151,21 @@ quickstart. Know its edges before you rely on it:
   admitted in *different* arrival interleavings assign identically — plus
   laggard sealing, release-on-block, quiescence, and the abort-worthy
   protocol violations (non-monotone clock, late op into a sealed window).
-  Not yet wired into the live broker or driven by remote hosts.
+
+- Windowed sequencer wired into the live broker
+  (`Broker::bind_with_window` / `Broker::bind_tcp_window`, window width in
+  ns; width 0 keeps the single-host arrival-routed broker unchanged). In
+  windowed mode a `Send` is buffered by the sequencer instead of routed on
+  arrival, a `Frontier` message releases an idle guest's window, a blocking
+  `Recv` is arrival-gated (`Core::recv_before` withholds a datagram until its
+  seeded delivery time falls below the sealed horizon) and leaves the sealing
+  quorum while parked, and a disconnect closes the connection out of the
+  quorum. The linearized recording is therefore the sealed virtual-time order,
+  not arrival order. Verified with an in-process two-sender harness
+  (`tests/broker_windowed.rs`): the same scenario under two *opposite*
+  real-time arrival interleavings produces a byte-identical recording and
+  delivery order. Not yet driven by remote hosts (the shim still speaks the
+  single-host path; TCP client + clock merge is the next step).
 
 - Entropy-free network waiting in the scheduler (`Status::BlockedNet`,
   `Scheduler::net_block`): a managed blocking `recvfrom` now parks *before*
