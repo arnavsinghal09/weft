@@ -35,6 +35,7 @@ fn main() {
         version: VERSION,
         seed: SEED,
         net: NET.into(),
+        window_ns: 0,
         meta: Meta {
             label: Some("demo-fifo-violation".into()),
             ..Meta::default()

@@ -279,6 +279,9 @@ pub fn run_cluster(opts: &RunOpts) -> Result<i32, String> {
                 version: weft_replay::log::VERSION,
                 seed: opts.seed,
                 net: spec.to_string(),
+                // Single-host recording: latency-only delivery. The windowed
+                // multi-host path records the real window width here.
+                window_ns: 0,
                 meta: weft_replay::log::Meta {
                     weft_version: Some(crate::version().to_string()),
                     ..weft_replay::log::Meta::default()

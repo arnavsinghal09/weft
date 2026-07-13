@@ -86,6 +86,7 @@ fn record_live_run(label: &str) -> PathBuf {
         version: VERSION,
         seed: SEED,
         net: NET.into(),
+        window_ns: 0,
         meta: Meta {
             label: Some(label.into()),
             ..Meta::default()

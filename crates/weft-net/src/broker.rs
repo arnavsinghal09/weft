@@ -54,6 +54,9 @@ pub enum Observed<'a> {
         src: VAddr,
         dst: VAddr,
         chan_seq: u64,
+        /// The sender local virtual time the delivery was anchored to (0 in
+        /// single-host mode). Recorded so replay recomputes the same delivery.
+        send_vt: u64,
         payload: &'a [u8],
         result: &'a SendResult,
     },
@@ -340,7 +343,11 @@ fn route_send(
     let (lock, cvar) = &**shared;
     let mut st = lock.lock().unwrap();
     st.track_skew(local_vt);
-    let (chan_seq, result) = st.core.send(src, dst, payload);
+    // Single-host delivery stays latency-only (send_vt = 0), preserving
+    // same-seed outcomes; the windowed multi-host broker (see
+    // docs/MULTI_HOST_CLOCK_PROTOCOL.md) anchors on the sender's `local_vt`.
+    let send_vt = 0;
+    let (chan_seq, result) = st.core.send(src, dst, payload, send_vt);
     // Publish the logical clock's high-water mark for the orchestrator.
     // fetch_max keeps it monotonic even if callers ever race here.
     global_time.fetch_max(st.core.vt(), Ordering::Relaxed);
@@ -349,6 +356,7 @@ fn route_send(
         src,
         dst,
         chan_seq,
+        send_vt,
         payload,
         result: &result,
     });

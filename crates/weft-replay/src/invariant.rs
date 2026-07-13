@@ -238,6 +238,7 @@ mod tests {
             src: b(),
             dst: a(),
             chan_seq: seq,
+            send_vt: 0,
             payload: String::new(),
             outcome: SendOutcome::Enqueued {
                 to_conn: 0,
@@ -296,6 +297,7 @@ mod tests {
             version: VERSION,
             seed: 1,
             net: String::new(),
+            window_ns: 0,
             meta: Meta::default(),
         };
         let events = [send(0, 10), send(1, 11), deliver(11), deliver(10)];

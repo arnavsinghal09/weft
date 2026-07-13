@@ -155,6 +155,16 @@ quickstart. Know its edges before you rely on it:
 
 ### Changed
 
+- **BREAKING (log format):** `weft-log` bumped to **version 2**. Delivery
+  time is now anchored to the sender's local virtual time
+  (`deliv = send_vt + seeded_latency`): the `send` event gained a `send_vt`
+  field and the header gained `window_ns` (0 = single-host / legacy). v1 logs
+  are **rejected on read** with a clear version-mismatch error — their
+  latency-only deliveries cannot replay under the anchored core without
+  silently diverging. Single-host runs pass `send_vt = 0`, so same-seed
+  outcomes (and the Chord/Raft case-study numbers) are unchanged; the
+  windowed multi-host broker will pass the real local time. Spec in
+  docs/recording-format.md; contract in VERSIONING.md §1.
 - A managed blocking `recvfrom` now delivers only at scheduler idle points
   (see entropy-free network waiting above), so a process observes the
   network only when it has no other runnable work. This changes the exact

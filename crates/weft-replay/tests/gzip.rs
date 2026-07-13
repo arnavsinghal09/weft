@@ -19,6 +19,7 @@ fn header() -> Header {
         version: VERSION,
         seed: 3,
         net: "latency=uniform:1000-100000".into(),
+        window_ns: 0,
         meta: Meta::default(),
     }
 }
@@ -53,6 +54,7 @@ fn events() -> Vec<Event> {
             src,
             dst: unbound,
             chan_seq: i,
+            send_vt: 0,
             payload: "deadbeef".into(),
             outcome: SendOutcome::NoReceiver,
         });

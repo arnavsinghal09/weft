@@ -123,11 +123,12 @@ pub fn replay_log(
                 conn,
                 src,
                 dst,
+                send_vt,
                 payload,
                 ..
             } => {
                 let bytes = from_hex(payload).ok_or(ReplayError::BadPayload { op: r.op })?;
-                let (chan_seq, res) = core.send((*src).into(), (*dst).into(), &bytes);
+                let (chan_seq, res) = core.send((*src).into(), (*dst).into(), &bytes, *send_vt);
                 let outcome = match res {
                     SendResult::Dropped => SendOutcome::Dropped,
                     SendResult::NoReceiver => SendOutcome::NoReceiver,
@@ -146,6 +147,7 @@ pub fn replay_log(
                     src: *src,
                     dst: *dst,
                     chan_seq,
+                    send_vt: *send_vt,
                     payload: payload.clone(),
                     outcome,
                 }
@@ -259,6 +261,7 @@ mod tests {
             version: VERSION,
             seed,
             net: net.into(),
+            window_ns: 0,
             meta: Meta::default(),
         };
         let mut buf = Vec::new();
@@ -285,7 +288,7 @@ mod tests {
 
         for i in 0u32..12 {
             let payload = i.to_le_bytes();
-            let (chan_seq, res) = core.send(b.into(), a.into(), &payload);
+            let (chan_seq, res) = core.send(b.into(), a.into(), &payload, 0);
             let outcome = match res {
                 SendResult::Dropped => SendOutcome::Dropped,
                 SendResult::NoReceiver => SendOutcome::NoReceiver,
@@ -307,6 +310,7 @@ mod tests {
                     src: b,
                     dst: a,
                     chan_seq,
+                    send_vt: 0,
                     payload: crate::hash::to_hex(&payload),
                     outcome,
                 },

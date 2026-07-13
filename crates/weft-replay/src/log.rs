@@ -25,8 +25,13 @@ use crate::hash::{fnv1a, fnv1a_once, FNV_OFFSET};
 
 /// The `format` field every header must carry.
 pub const FORMAT: &str = "weft-log";
-/// The current (and only) format version.
-pub const VERSION: u32 = 1;
+/// The current format version.
+///
+/// v2 (from the multi-host groundwork) added the per-`Send` `send_vt` anchor
+/// and the header `window_ns` field. v1 logs are rejected on read — their
+/// deliveries were latency-only and cannot be replayed under the send-time-
+/// anchored core without silently diverging.
+pub const VERSION: u32 = 2;
 
 /// A virtual network address, mirroring `weft_net::VAddr` but serializable.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
@@ -70,6 +75,11 @@ pub struct Header {
     /// The network-condition spec exactly as given to the broker
     /// (`weft_net::config` syntax), empty for a reliable network.
     pub net: String,
+    /// Virtual-time window width (ns) for windowed multi-host sealing, or 0
+    /// for a single-host / legacy recording. Replay uses it to select
+    /// delivery semantics (see docs/MULTI_HOST_CLOCK_PROTOCOL.md).
+    #[serde(default)]
+    pub window_ns: u64,
     /// Informational, replay-irrelevant metadata.
     #[serde(default)]
     pub meta: Meta,
@@ -139,6 +149,10 @@ pub enum Event {
         dst: Addr,
         /// Per-channel (src→dst) sequence number — the fault model's input.
         chan_seq: u64,
+        /// Sender local virtual time the delivery was anchored to (0 in
+        /// single-host mode). A replay input: `deliv = send_vt + latency`.
+        #[serde(default)]
+        send_vt: u64,
         /// Hex-encoded payload bytes.
         payload: String,
         outcome: SendOutcome,
@@ -497,6 +511,7 @@ mod tests {
             version: VERSION,
             seed: 42,
             net: "loss=0.5".into(),
+            window_ns: 0,
             meta: Meta::default(),
         }
     }
@@ -519,6 +534,7 @@ mod tests {
                 src: b,
                 dst: a,
                 chan_seq: 0,
+                send_vt: 0,
                 payload: "68690a".into(),
                 outcome: SendOutcome::Enqueued {
                     to_conn: 0,
@@ -599,6 +615,23 @@ mod tests {
         let _w = LogWriter::new(&mut buf, &h).unwrap();
         let err = Log::from_reader(buf.as_slice()).unwrap_err();
         assert!(matches!(err, LogError::UnsupportedVersion(999)));
+    }
+
+    #[test]
+    fn v1_log_is_rejected_with_a_clear_message() {
+        // A pre-anchor (v1) recording: its deliveries were latency-only and
+        // must not silently misreplay under the send-time-anchored core.
+        let mut h = header();
+        h.version = 1;
+        let mut buf = Vec::new();
+        let _w = LogWriter::new(&mut buf, &h).unwrap();
+        let err = Log::from_reader(buf.as_slice()).unwrap_err();
+        assert!(matches!(err, LogError::UnsupportedVersion(1)), "{err:?}");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("version 1") && msg.contains(&VERSION.to_string()),
+            "unclear version-mismatch message: {msg}"
+        );
     }
 
     #[test]

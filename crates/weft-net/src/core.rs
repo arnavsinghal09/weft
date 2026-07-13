@@ -115,9 +115,22 @@ impl Core {
         self.bound.insert(addr, conn);
     }
 
-    /// Route one datagram. Returns the channel sequence number consumed and
-    /// the decision. Deterministic given the same call sequence.
-    pub fn send(&mut self, src: VAddr, dst: VAddr, payload: &[u8]) -> (u64, SendResult) {
+    /// Route one datagram. `send_vt` is the sender's local virtual time at the
+    /// moment of the send; the delivery time is anchored to it
+    /// (`deliv = send_vt + seeded_latency`) so a datagram lands at a coherent
+    /// point on the timeline rather than at a bare latency offset. Single-host
+    /// callers pass `send_vt = 0`, recovering the original latency-only
+    /// delivery order (and leaving same-seed outcomes unchanged); the windowed
+    /// multi-host broker passes the real local time so cross-host deliveries
+    /// order on one shared timeline. Returns the channel sequence number
+    /// consumed and the decision; deterministic given the same call sequence.
+    pub fn send(
+        &mut self,
+        src: VAddr,
+        dst: VAddr,
+        payload: &[u8],
+        send_vt: u64,
+    ) -> (u64, SendResult) {
         self.sent += 1;
         let seq = {
             let e = self.seq.entry((src, dst)).or_insert(0);
@@ -133,12 +146,13 @@ impl Core {
         let Some(&conn) = self.bound.get(&dst) else {
             return (seq, SendResult::NoReceiver);
         };
+        let deliv = send_vt.saturating_add(fate.delay_ns);
         let tie = self.tie;
         self.tie += 1;
-        self.vt = self.vt.max(fate.delay_ns);
+        self.vt = self.vt.max(deliv);
         if let Some(q) = self.queues.get_mut(&conn) {
             q.push(Pending {
-                deliv: fate.delay_ns,
+                deliv,
                 tie,
                 src,
                 dst,
@@ -149,7 +163,7 @@ impl Core {
             seq,
             SendResult::Enqueued {
                 to_conn: conn,
-                deliv_ns: fate.delay_ns,
+                deliv_ns: deliv,
                 tie,
             },
         )
@@ -235,7 +249,7 @@ mod tests {
             c.bind(0, addr(0, 100));
             let mut sends = Vec::new();
             for i in 0u32..20 {
-                sends.push(c.send(addr(1, 200), addr(0, 100), &i.to_le_bytes()));
+                sends.push(c.send(addr(1, 200), addr(0, 100), &i.to_le_bytes(), 0));
             }
             let mut delivered = Vec::new();
             while let RecvResult::Delivered { tie, payload, .. } = c.recv(0) {
@@ -250,12 +264,12 @@ mod tests {
     fn unbound_destination_consumes_seq_but_not_tie() {
         let mut c = Core::new(model(1));
         c.connect(0);
-        let (seq0, r0) = c.send(addr(1, 9), addr(0, 100), b"x");
+        let (seq0, r0) = c.send(addr(1, 9), addr(0, 100), b"x", 0);
         assert_eq!((seq0, r0), (0, SendResult::NoReceiver));
         // Now bind and send again on the same channel: seq advanced, and the
         // first real enqueue takes tie 0 (no tie was burned on the miss).
         c.bind(0, addr(0, 100));
-        let (seq1, r1) = c.send(addr(1, 9), addr(0, 100), b"y");
+        let (seq1, r1) = c.send(addr(1, 9), addr(0, 100), b"y", 0);
         assert_eq!(seq1, 1);
         assert!(matches!(r1, SendResult::Enqueued { tie: 0, .. }), "{r1:?}");
     }
@@ -267,7 +281,7 @@ mod tests {
         c.bind(0, addr(0, 1));
         // Reliable model: every delay is 0, so pops are pure tie order (FIFO).
         for i in 0u8..5 {
-            c.send(addr(1, 2), addr(0, 1), &[i]);
+            c.send(addr(1, 2), addr(0, 1), &[i], 0);
         }
         let mut got = Vec::new();
         while let RecvResult::Delivered { payload, .. } = c.recv(0) {
@@ -285,7 +299,7 @@ mod tests {
         let mut max = 0;
         for i in 0u32..10 {
             if let (_, SendResult::Enqueued { deliv_ns, .. }) =
-                c.send(addr(1, 2), addr(0, 1), &i.to_le_bytes())
+                c.send(addr(1, 2), addr(0, 1), &i.to_le_bytes(), 0)
             {
                 max = max.max(deliv_ns);
             }
@@ -295,14 +309,38 @@ mod tests {
     }
 
     #[test]
+    fn delivery_time_is_anchored_to_send_vt() {
+        // With a reliable model every latency is 0, so the delivery time is
+        // exactly the sender's local virtual time: a datagram sent "later"
+        // (higher send_vt) is scheduled later on the timeline, and `recv`
+        // pops in that order regardless of enqueue order.
+        let mut c = Core::new(FaultModel::reliable(0));
+        c.connect(0);
+        c.bind(0, addr(0, 1));
+        // Enqueue out of send-time order: vt 500 first, then vt 100.
+        let (_, r_late) = c.send(addr(1, 2), addr(0, 1), b"late", 500);
+        let (_, r_early) = c.send(addr(1, 2), addr(0, 1), b"early", 100);
+        assert!(matches!(r_late, SendResult::Enqueued { deliv_ns: 500, .. }));
+        assert!(matches!(
+            r_early,
+            SendResult::Enqueued { deliv_ns: 100, .. }
+        ));
+        // Smallest deliv (100 = "early") pops first even though it was sent
+        // second; vt tracks the largest scheduled delivery.
+        let first = c.recv(0);
+        assert!(matches!(&first, RecvResult::Delivered { payload, .. } if payload == b"early"));
+        assert_eq!(c.vt(), 500);
+    }
+
+    #[test]
     fn disconnect_releases_bindings_and_queue() {
         let mut c = Core::new(FaultModel::reliable(0));
         c.connect(0);
         c.bind(0, addr(0, 1));
-        c.send(addr(1, 2), addr(0, 1), b"pending");
+        c.send(addr(1, 2), addr(0, 1), b"pending", 0);
         c.disconnect(0);
         assert_eq!(c.recv(0), RecvResult::Empty);
-        let (_, r) = c.send(addr(1, 2), addr(0, 1), b"gone");
+        let (_, r) = c.send(addr(1, 2), addr(0, 1), b"gone", 0);
         assert_eq!(r, SendResult::NoReceiver);
     }
 }

@@ -180,6 +180,7 @@ mod tests {
             version: VERSION,
             seed: 3,
             net: "latency=uniform:1000-100000".into(),
+            window_ns: 0,
             meta: Meta {
                 label: Some("demo".into()),
                 ..Meta::default()
@@ -199,6 +200,7 @@ mod tests {
                 src: b,
                 dst: a,
                 chan_seq: 0,
+                send_vt: 0,
                 payload: "00".into(),
                 outcome: SendOutcome::Enqueued {
                     to_conn: 0,
@@ -211,6 +213,7 @@ mod tests {
                 src: b,
                 dst: a,
                 chan_seq: 1,
+                send_vt: 0,
                 payload: "01".into(),
                 outcome: SendOutcome::Enqueued {
                     to_conn: 0,

@@ -141,12 +141,16 @@ fn apply(core: &mut Core, input: &OpInput) -> Event {
             dst,
             payload,
         } => {
-            let (chan_seq, res) = core.send(*src, *dst, payload);
+            // Fuzz drives the broker core directly, single-host: latency-only
+            // delivery (send_vt = 0), so shrink ground-truth minima are
+            // unchanged by the send-time anchor.
+            let (chan_seq, res) = core.send(*src, *dst, payload, 0);
             Event::Send {
                 conn: *conn,
                 src: (*src).into(),
                 dst: (*dst).into(),
                 chan_seq,
+                send_vt: 0,
                 payload: to_hex(payload),
                 outcome: match res {
                     SendResult::Dropped => SendOutcome::Dropped,
@@ -248,6 +252,7 @@ pub fn execute_and_record(
         version: VERSION,
         seed,
         net: net.into(),
+        window_ns: 0,
         meta: Meta {
             label: Some(label.into()),
             ..Meta::default()

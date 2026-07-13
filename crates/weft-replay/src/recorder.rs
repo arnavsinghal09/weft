@@ -48,6 +48,7 @@ fn to_event(ev: &Observed<'_>) -> Event {
             src,
             dst,
             chan_seq,
+            send_vt,
             payload,
             result,
         } => Event::Send {
@@ -55,6 +56,7 @@ fn to_event(ev: &Observed<'_>) -> Event {
             src: (*src).into(),
             dst: (*dst).into(),
             chan_seq: *chan_seq,
+            send_vt: *send_vt,
             payload: to_hex(payload),
             outcome: match result {
                 SendResult::Dropped => SendOutcome::Dropped,
