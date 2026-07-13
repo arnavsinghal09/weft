@@ -11,8 +11,10 @@ pub mod broker;
 pub mod config;
 pub mod core;
 pub mod fault;
+pub mod window;
 pub mod wire;
 
 pub use broker::Broker;
 pub use fault::{FaultModel, Latency, Partition};
+pub use window::{SeqError, SeqSend, WindowSequencer};
 pub use wire::{FromBroker, ToBroker, VAddr};

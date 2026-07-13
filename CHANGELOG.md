@@ -141,6 +141,18 @@ quickstart. Know its edges before you rely on it:
   cross-process arrival order, so folding it into guest-visible time would
   break the same-seed guarantee (docs/MULTI_HOST_ARCHITECTURE.md).
 
+- Windowed sequencer core (`weft_net::WindowSequencer`): the pure,
+  arrival-order-independent ordering component of the multi-host protocol
+  (docs/MULTI_HOST_CLOCK_PROTOCOL.md §4). Buffers sends, tracks per-connection
+  frontiers (op-carried, explicit, release-on-block, release-on-close), seals
+  a virtual-time window once every live connection's frontier crosses it, and
+  emits that window's ops in the total order `(local_vt, host_id, node_id,
+  conn_seq)`. Unit-tested for the load-bearing property — the same ops
+  admitted in *different* arrival interleavings assign identically — plus
+  laggard sealing, release-on-block, quiescence, and the abort-worthy
+  protocol violations (non-monotone clock, late op into a sealed window).
+  Not yet wired into the live broker or driven by remote hosts.
+
 - Entropy-free network waiting in the scheduler (`Status::BlockedNet`,
   `Scheduler::net_block`): a managed blocking `recvfrom` now parks *before*
   polling the broker rather than spinning on `yield_now`. While any sibling
