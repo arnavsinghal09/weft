@@ -43,7 +43,9 @@ fn write_fd2(bytes: &[u8]) {
             if n <= 0 {
                 return;
             }
-            #[allow(clippy::cast_sign_loss)] // n > 0 checked above
+            // n > 0 checked above and is bounded by the requested length
+            // (`bytes.len() - off`), so it fits in usize on every target.
+            #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
             {
                 off += n as usize;
             }
@@ -59,7 +61,9 @@ fn write_fd2(bytes: &[u8]) {
             if n <= 0 {
                 return;
             }
-            #[allow(clippy::cast_sign_loss)] // n > 0 checked above
+            // n > 0 checked above and is bounded by the requested length
+            // (`bytes.len() - off`), so it fits in usize on every target.
+            #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
             {
                 off += n as usize;
             }
