@@ -1,4 +1,4 @@
-# The Weft recording format (`weft-log`, version 1)
+# The Weft recording format (`weft-log`, version 2)
 
 This document specifies the event-log format precisely enough that an
 independent tool, given only this text, can read (and verify) a log
@@ -15,21 +15,27 @@ seed** and therefore needs no recording — it is recomputed on replay:
 
 | recomputed on replay          | from                                        |
 |-------------------------------|---------------------------------------------|
-| datagram fates (drop, delay)  | `fate(seed, src, dst, chan_seq, len)`       |
+| datagram fates (drop, latency)| `fate(seed, src, dst, chan_seq, len)`       |
+| delivery time                 | `send_vt + fate.latency` (§5)               |
 | virtual time                  | the virtual clock's defined advance rules   |
 | PRNG output                   | seeded per-domain ChaCha8 streams           |
 | managed-thread schedule       | the seeded scheduler stream                 |
 | delivery order among pending  | smallest `(deliv_ns, tie)` pops first       |
 
-Exactly **one** input to a simulated run is not seed-derived: the **broker
-linearization order** — the order in which requests from independently
-OS-scheduled processes acquire the broker's state lock. That order decides:
+Two inputs to a simulated run are not seed-derived and so are recorded:
 
-- which global `tie` value each enqueued datagram gets (the deterministic
-  tiebreaker between equal delivery times),
-- how per-channel sequence numbers interleave across channels,
-- every send-vs-recv race the application can observe (whether a poll sees
-  `empty` or a delivery).
+1. The **broker linearization order** — the order in which requests from
+   independently OS-scheduled processes acquire the broker's state lock. That
+   order decides which global `tie` value each enqueued datagram gets (the
+   deterministic tiebreaker between equal delivery times), how per-channel
+   sequence numbers interleave across channels, and every send-vs-recv race
+   the application can observe (whether a poll sees `empty` or a delivery).
+2. Each send's **`send_vt`** — the sender's local virtual time, which anchors
+   the delivery time (`deliv = send_vt + seeded latency`). In a single-host
+   recording (`window_ns = 0`) it is always `0`, recovering latency-only
+   delivery; in a windowed multi-host recording the broker cannot recompute a
+   remote node's clock, so the value it was given is recorded on the `send`
+   event and fed back verbatim on replay.
 
 A `weft-log` therefore records the linearized sequence of broker boundary
 operations, each with its *inputs* (who, what address, what payload) and the
@@ -58,15 +64,16 @@ last record an "end" event (absent if the run crashed mid-recording;
 ## 3. The header (line 1)
 
 ```json
-{"format":"weft-log","version":1,"seed":3,"net":"latency=uniform:1000-100000","meta":{}}
+{"format":"weft-log","version":2,"seed":3,"net":"latency=uniform:1000-100000","window_ns":0,"meta":{}}
 ```
 
 | field     | type   | meaning                                                          |
 |-----------|--------|------------------------------------------------------------------|
 | `format`  | string | MUST be `"weft-log"`; reject anything else.                      |
-| `version` | u32    | This spec is version `1`. Readers MUST reject unknown versions rather than guess. |
+| `version` | u32    | This spec is version `2`. Readers MUST reject unknown versions rather than guess; version `1` (latency-only delivery, no `send_vt`) is rejected — it cannot be replayed under the send-time-anchored core without silently diverging. |
 | `seed`    | u64    | The run seed. With the recorded order, reproduces every fate.    |
 | `net`     | string | The network-condition spec exactly as the broker parsed it (`weft_net::config` syntax: `latency=…`, `loss=…`, `bw=…`, `partition=…` joined by commas). Empty string = reliable network. |
+| `window_ns` | u64  | The virtual-time window width used for windowed multi-host sealing, or `0` for a single-host / legacy recording. Optional on read (defaults to `0`). Selects delivery semantics on replay. |
 | `meta`    | object | Informational only. Known keys: `recorded_unix_ms` (u64), `weft_version` (string), `label` (string). All optional; readers MUST ignore unknown keys here. Replay-irrelevant by definition. |
 
 ## 4. Records (lines 2..N)
@@ -104,7 +111,7 @@ are tagged by `kind`.
 | `connect`    | `conn` (u64)                                                  | connection registered under the state lock |
 | `hello`      | `conn`, `node` (u32)                                          | first protocol message; no state change, recorded for node identity |
 | `bind`       | `conn`, `addr`                                                | address claimed |
-| `send`       | `conn`, `src`, `dst`, `chan_seq` (u64), `payload` (hex), `outcome` | datagram routed |
+| `send`       | `conn`, `src`, `dst`, `chan_seq` (u64), `send_vt` (u64), `payload` (hex), `outcome` | datagram routed. `send_vt` (optional on read, default `0`) is the sender local virtual time the delivery is anchored to. |
 | `recv`       | `conn`, `blocking` (bool), `outcome`                          | the queue pop (or empty answer). A *blocking* recv is logged when it **succeeds** — the pop is its linearization point, so replay finds the datagram already enqueued. |
 | `disconnect` | `conn`                                                        | connection dropped; its bindings released |
 | `violation`  | `invariant` (string), `message` (string)                      | appended immediately after the op that completed the violation |
@@ -131,10 +138,13 @@ both execute):
    not.
 2. `tie` advances globally, but **only** when a datagram is actually
    enqueued.
-3. `recv` pops the pending datagram with the smallest `(deliv_ns, tie)`.
-4. `vt` after an operation = max(previous `vt`, any `deliv_ns` scheduled by
+3. A datagram's delivery time is `deliv_ns = send_vt + fate.latency`
+   (saturating). With `send_vt = 0` this is latency-only, the single-host
+   default.
+4. `recv` pops the pending datagram with the smallest `(deliv_ns, tie)`.
+5. `vt` after an operation = max(previous `vt`, any `deliv_ns` scheduled by
    it).
-5. `disconnect` removes the connection's queue and every address bound to it.
+6. `disconnect` removes the connection's queue and every address bound to it.
 
 ## 6. The integrity chain
 
@@ -218,8 +228,14 @@ re-raise identical violations at identical positions.
 
 Any change to canonical serialization, chain computation, event fields, or
 semantics of §5 requires incrementing `version`. Readers reject unknown
-versions. Version 1 readers must ignore unknown keys only inside `meta`;
-unknown keys anywhere else are a malformed record.
+versions. Readers must ignore unknown keys only inside `meta`; unknown keys
+anywhere else are a malformed record.
+
+Version 2 (the current version) added the per-`send` `send_vt` anchor and the
+header `window_ns` field. Version 1 (latency-only delivery) is **rejected on
+read** — its recorded deliveries would silently diverge under the send-time-
+anchored core, so there is no in-place upgrade: re-record under the current
+tool.
 
 ## 11. Compression (optional transport encoding)
 

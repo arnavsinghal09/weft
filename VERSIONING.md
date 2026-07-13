@@ -24,8 +24,14 @@ and independently of everything else:
 - The header carries `"format":"weft-log","version":N`. **Any** change to
   record semantics — new required fields, changed digest computation,
   changed meaning of an existing field, changed op numbering — increments
-  `N`. This applies pre-1.0 too; version 1 is already a published contract
-  (docs/recording-format.md).
+  `N`. This applies pre-1.0 too (docs/recording-format.md).
+- **Current version: 2.** v2 added the per-`send` `send_vt` anchor
+  (`deliv = send_vt + latency`) and the header `window_ns` field, groundwork
+  for windowed multi-host recordings. **v1 is rejected on read** — its
+  latency-only deliveries would silently diverge under the send-time-anchored
+  core, so there is no in-place upgrade; re-record under the current tool.
+  (Pre-1.0, and Weft was published only days earlier, so no long-lived
+  archives are orphaned in practice.)
 - Readers MUST reject unknown versions rather than guess. `weft replay`
   does; your tooling should too.
 - **Non-breaking**: adding keys inside the header's `meta` object (readers

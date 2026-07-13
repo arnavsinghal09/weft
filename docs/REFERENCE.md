@@ -207,18 +207,19 @@ Full semantics in [fuzzing.md](fuzzing.md). Unknown fields are rejected
 
 ---
 
-## 6. Recording format (weft-log v1)
+## 6. Recording format (weft-log v2)
 
 Full specification: [recording-format.md](recording-format.md). Essentials:
 
 - Line-oriented JSON; line 1 is the header:
-  `{"format":"weft-log","version":1,"seed":…,"net":"…","meta":{…}}`.
-- Readers MUST reject unknown `version` values; `meta` is informational only
-  and MUST be ignored for replay purposes.
+  `{"format":"weft-log","version":2,"seed":…,"net":"…","window_ns":0,"meta":{…}}`.
+- Readers MUST reject unknown `version` values; v1 logs are rejected (their
+  latency-only deliveries predate send-time anchoring). `meta` is
+  informational only and MUST be ignored for replay purposes.
 - Gzip is detected by content (magic bytes), never by file extension.
-- The log records the broker linearization order — the only non-seed input
-  to a run — so `seed + log` reconstructs the run exactly; replay verifies a
-  FNV-1a chain digest over every record.
+- The log records the broker linearization order and each send's `send_vt`
+  (the two non-seed inputs) — so `seed + log` reconstructs the run exactly;
+  replay verifies a FNV-1a chain digest over every record.
 
 ---
 
