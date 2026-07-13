@@ -141,7 +141,29 @@ quickstart. Know its edges before you rely on it:
   cross-process arrival order, so folding it into guest-visible time would
   break the same-seed guarantee (docs/MULTI_HOST_ARCHITECTURE.md).
 
+- Entropy-free network waiting in the scheduler (`Status::BlockedNet`,
+  `Scheduler::net_block`): a managed blocking `recvfrom` now parks *before*
+  polling the broker rather than spinning on `yield_now`. While any sibling
+  thread is runnable the wait costs exactly one scheduling decision, never
+  one per real poll — so real poll timing (a slow cross-process peer) can no
+  longer shift the RNG stream. Only when the process is otherwise idle does
+  the scheduler promote a net-blocked thread (round-robin, no RNG draw) to
+  poll the broker, backing off in real time between polls. Closes the
+  precondition the multi-host protocol depends on. Verified end-to-end:
+  `examples/netsched.c` produces a byte-identical receiver schedule under a
+  100M-iteration real busy-spin on the peer between sends.
+
 ### Changed
+
+- A managed blocking `recvfrom` now delivers only at scheduler idle points
+  (see entropy-free network waiting above), so a process observes the
+  network only when it has no other runnable work. This changes the exact
+  interleaving of programs that mix local threads with network receives: the
+  `kvreplica` reorder demo now triggers a stale read for more seeds (the
+  replica applies remote writes later), though the stale read still requires
+  network latency variance — a reliable network never reorders, for any
+  seed. The Phase 3 proof (`net_e2e`) now demonstrates it with seeds 1
+  (reorders) and 6 (clean).
 
 - **BREAKING (API):** removed the never-implemented YAML scenario surface —
   `Scenario::from_yaml` and `parse_scenario_yaml` parsed JSON while claiming

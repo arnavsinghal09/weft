@@ -9,7 +9,7 @@ use std::process::{Command, Stdio};
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
-const PROGRAMS: &[&str] = &["pingpong", "kvreplica"];
+const PROGRAMS: &[&str] = &["pingpong", "kvreplica", "netsched"];
 
 /// The seeded network spec used by the kvreplica proof (documented in
 /// docs/network-model.md; the trigger/avoid seeds below belong to it).
@@ -121,18 +121,20 @@ fn two_processes_exchange_messages_deterministically() {
 
 /// The Phase 3 bug proof: under seeded latency variance the replica's missing
 /// version check yields a stale read for one seed and a correct read for
-/// another — each reliable across 20 runs (seeds from the documented scan).
+/// another — each reliable across 20 runs. The stale read still *requires*
+/// latency variance (see [`reliable_network_never_reorders`]); these two
+/// seeds just demonstrate both outcomes under the deterministic scheduler.
 #[test]
 fn reordering_bug_is_triggered_and_avoided_deterministically() {
     for _ in 0..20 {
         let (out, code) = weft_net_run(1, KV_NET, 1, "kvreplica");
-        assert_eq!(out, "final=6 expected=8 stale=1\n", "seed 1 must reorder");
+        assert_eq!(out, "final=2 expected=8 stale=1\n", "seed 1 must reorder");
         assert_ne!(code, 0, "stale read must fail the run");
 
-        let (out, code) = weft_net_run(0, KV_NET, 1, "kvreplica");
+        let (out, code) = weft_net_run(6, KV_NET, 1, "kvreplica");
         assert_eq!(
             out, "final=8 expected=8 stale=0\n",
-            "seed 0 must stay in order"
+            "seed 6 must stay in order"
         );
         assert_eq!(code, 0);
     }
@@ -160,5 +162,78 @@ fn exponential_latency_is_reproducible_per_seed() {
             first, again,
             "seed {seed} not reproducible under exp latency"
         );
+    }
+}
+
+/// Like [`weft_net_run`] but injects extra environment variables into the
+/// child (used to feed `netsched` its real-jitter knob) and a per-run
+/// `NETSCHED_READY` handshake file so node 1 never sends before node 0 binds.
+/// Same 30s watchdog.
+fn weft_net_run_env(seed: u64, program: &str, envs: &[(&str, &str)]) -> (String, i32) {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static N: AtomicU64 = AtomicU64::new(0);
+    let ready = std::env::temp_dir().join(format!(
+        "weft_netsched_ready_{}_{}",
+        std::process::id(),
+        N.fetch_add(1, Ordering::Relaxed)
+    ));
+    let _ = std::fs::remove_file(&ready);
+    let mut cmd = Command::new(weft_bin());
+    cmd.arg("run")
+        .args(["--seed", &seed.to_string()])
+        .args(["--net", ""])
+        .args(["--nodes", "2"])
+        .arg("--shim")
+        .arg(shim_path())
+        .arg("--")
+        .arg(built().join(program))
+        .env("NETSCHED_READY", &ready)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    for (k, v) in envs {
+        cmd.env(k, v);
+    }
+    let mut child = cmd.spawn().expect("failed to spawn weft");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let status = loop {
+        if let Some(st) = child.try_wait().expect("wait failed") {
+            break st;
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = std::fs::remove_file(&ready);
+            panic!("weft run --net timed out (seed {seed}, {program}); killed");
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    let mut out = String::new();
+    std::io::Read::read_to_string(child.stdout.as_mut().unwrap(), &mut out).unwrap();
+    let _ = std::fs::remove_file(&ready);
+    (out, status.code().unwrap_or(-1))
+}
+
+/// OQ-5 regression (the entropy-free-network-waiting guarantee): waiting on
+/// the network must consume no scheduler entropy, so REAL timing jitter on
+/// the peer — a busy-spin inserted between its sends — must not shift the
+/// receiver's thread interleaving. The receiver's `order=` line is a pure
+/// function of its scheduler decisions; if a poll ever drew RNG per real
+/// poll (the old `yield_now` behavior) the spin would change it.
+#[test]
+fn net_wait_consumes_no_scheduler_entropy() {
+    for seed in [0u64, 7, 42] {
+        let (calm, code) = weft_net_run_env(seed, "netsched", &[("NETSCHED_SPIN", "0")]);
+        assert_eq!(code, 0, "netsched (calm) failed:\n{calm}");
+        assert!(calm.contains("order="), "bad output: {calm}");
+
+        let (jittered, code) =
+            weft_net_run_env(seed, "netsched", &[("NETSCHED_SPIN", "100000000")]);
+        assert_eq!(code, 0, "netsched (jittered) failed:\n{jittered}");
+        assert_eq!(
+            calm, jittered,
+            "seed {seed}: real peer timing changed the receiver's schedule"
+        );
+
+        let (again, _) = weft_net_run_env(seed, "netsched", &[("NETSCHED_SPIN", "0")]);
+        assert_eq!(calm, again, "seed {seed}: same seed, different schedule");
     }
 }

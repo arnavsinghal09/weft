@@ -106,6 +106,11 @@ enum Status {
     BlockedCond(Key),
     /// In `pthread_join`, waiting for the target thread to finish.
     BlockedJoin(Tid),
+    /// Waiting for a network delivery (key = encoded receive address). Unlike
+    /// the other blocked states, the unblocking event comes from *outside*
+    /// the process, so a fully net-blocked process promotes one such thread
+    /// to poll on everyone's behalf (see `net_block`).
+    BlockedNet(Key),
     /// Returned from its start routine (or called `pthread_exit`).
     Finished,
 }
@@ -120,6 +125,10 @@ struct State {
     rng: ChaCha8Rng,
     strategy: Strategy,
     rr_cursor: Tid,
+    /// Round-robin cursor over `BlockedNet` threads, so an idle process with
+    /// several network waiters promotes them fairly (deterministic: advances
+    /// by tid, never by RNG). See `pick_next`.
+    net_cursor: Tid,
     next_tid: Tid,
     // coverage / stats
     decisions: u64,
@@ -146,6 +155,7 @@ impl Scheduler {
                 rng: crate::rng::Domains::scheduler_stream(seed),
                 strategy,
                 rr_cursor: 0,
+                net_cursor: 0,
                 next_tid: 0,
                 decisions: 0,
                 sites: Set::default(),
@@ -375,6 +385,22 @@ impl Scheduler {
         drop(st);
     }
 
+    /// Park the calling thread as blocked-on-network and yield. Returns only
+    /// when the thread holds the token again, which — because nothing wakes a
+    /// `BlockedNet` thread except `pick_next`'s idle-promotion — happens
+    /// exactly when the rest of the process is idle and this thread has been
+    /// chosen to poll the broker. While any sibling is runnable the caller
+    /// stays parked and the wait costs no further scheduling decisions. This
+    /// is a waiting primitive: the caller must re-poll the broker on return.
+    pub fn net_block(&self, key: Key) {
+        let me = current_tid().expect("caller registered");
+        let _g = Reentrancy::enter();
+        let mut st = self.state.lock().unwrap();
+        st.status.insert(me, Status::BlockedNet(key));
+        self.pick_next("net_block", &mut st);
+        let _st = self.wait_turn(me, st);
+    }
+
     /// Voluntary yield point (`sched_yield`, and the tail of `pthread_create`).
     pub fn yield_now(&self, site: &'static str) {
         let me = current_tid().expect("caller registered");
@@ -398,6 +424,33 @@ impl Scheduler {
             .collect();
 
         if runnable.is_empty() {
+            // Nothing can run: the process is idle. Threads blocked on the
+            // network are unblocked by the outside world, not by a sibling,
+            // so promote one to poll the broker on the process's behalf —
+            // deterministically and with *no* RNG draw, so the real time
+            // spent polling never perturbs the schedule. Round-robin over the
+            // net-blocked set (by tid) so several waiters can't starve each
+            // other into a wedge.
+            let mut netblocked: Vec<Tid> = st
+                .status
+                .iter()
+                .filter(|(_, s)| matches!(s, Status::BlockedNet(_)))
+                .map(|(t, _)| *t)
+                .collect();
+            if !netblocked.is_empty() {
+                netblocked.sort_unstable();
+                let next = netblocked
+                    .iter()
+                    .copied()
+                    .find(|&t| t > st.net_cursor)
+                    .unwrap_or(netblocked[0]);
+                st.net_cursor = next;
+                st.status.insert(next, Status::Runnable);
+                st.rr_cursor = next;
+                st.running = Some(next);
+                self.turn.notify_all();
+                return;
+            }
             if st.status.values().any(|s| *s != Status::Finished) {
                 let blocked = st
                     .status

@@ -203,3 +203,53 @@ fn condvar_rendezvous() {
         "not every worker woke and recorded"
     );
 }
+
+#[test]
+fn net_block_promotes_the_sole_blocked_thread() {
+    // A managed worker that blocks on the network with no runnable sibling
+    // must be promoted back to run (it becomes the process's poller) rather
+    // than deadlock — and the promotion draws no RNG. Test completion proves
+    // `net_block` returns; the flag proves control ran past the park.
+    const KEY: usize = 0x5000;
+    let ran = scenario(
+        1,
+        Strategy::Random,
+        1,
+        AtomicBool::new(false),
+        |sched, _tid, flag| {
+            sched.net_block(KEY);
+            flag.store(true, Ordering::Relaxed);
+        },
+    );
+    assert!(
+        ran.load(Ordering::Relaxed),
+        "net_block never returned for the sole thread"
+    );
+}
+
+#[test]
+fn net_block_rotates_between_two_idle_waiters() {
+    // Two managed workers both block on the network with nothing else
+    // runnable. Round-robin promotion must hand each of them a turn (rather
+    // than promoting one forever), so both return from `net_block` and
+    // finish. A worker that never resumed would leave the harness join
+    // hanging; completion plus both flags proves neither starved.
+    let seen = scenario(
+        2,
+        Strategy::Random,
+        2,
+        (AtomicBool::new(false), AtomicBool::new(false)),
+        |sched, tid, flags| {
+            sched.net_block(0x6000 + usize::try_from(tid).unwrap());
+            if tid == 1 {
+                flags.0.store(true, Ordering::Relaxed);
+            } else {
+                flags.1.store(true, Ordering::Relaxed);
+            }
+        },
+    );
+    assert!(
+        seen.0.load(Ordering::Relaxed) && seen.1.load(Ordering::Relaxed),
+        "a net-blocked waiter was never promoted"
+    );
+}

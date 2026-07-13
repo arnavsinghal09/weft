@@ -10,15 +10,25 @@
 //! # Scheduler integration (the determinism-critical part)
 //!
 //! A broker round-trip (request + reply) is performed while *holding* the
-//! Phase 2 scheduler token, so it is one atomic step in the deterministic
-//! schedule. Managed threads therefore never park inside the broker: a
-//! `recvfrom` with nothing pending gets `Empty` back and then calls the
-//! scheduler's `yield_now` — waiting for a datagram is exactly a Phase 2
-//! yield point, and *which* thread gets to produce that datagram next is
-//! chosen deterministically from the seed. Unmanaged threads (single-threaded
-//! processes, cross-process nodes) fall back to a blocking broker `Recv`;
-//! message *content and per-channel fate* stay deterministic, but cross-
-//! process interleaving is not unified — the documented Phase 3 limit.
+//! scheduler token, so it is one atomic step in the deterministic schedule.
+//! Managed threads never park inside the broker (the token would be lost to
+//! real-time races): the broker request stays non-blocking for them.
+//!
+//! A managed *blocking* `recvfrom` defers delivery to a scheduler idle point.
+//! It parks as `BlockedNet` (`Scheduler::net_block`) *before* polling, so a
+//! datagram is never consumed while a sibling is runnable. While any sibling
+//! can run the wait costs exactly one scheduling decision (the park), never
+//! one per real poll — so real poll timing (a slow cross-process peer) cannot
+//! shift the RNG stream (the OQ-5 fix). Only when the process is otherwise
+//! idle does the scheduler promote a net-blocked thread — with no RNG draw —
+//! to poll the broker, backing off in real time between polls. The
+//! consequence, by design: a process observes the network only at its
+//! deterministic idle points. Unmanaged threads (single-threaded processes,
+//! cross-process nodes) fall back to a blocking broker `Recv`; message
+//! *content and per-channel fate* stay deterministic, but cross-process
+//! arrival *order* is not unified until the windowed multi-host protocol
+//! (docs/MULTI_HOST_CLOCK_PROTOCOL.md) — the documented Phase 3 limit
+//! (LIMITATIONS.md §3).
 
 // The only panic reachable from these hooks is `Mutex::lock().unwrap()` on
 // poisoning, which cannot happen: no critical section here performs a
@@ -84,6 +94,35 @@ struct Sock {
     local: Option<VAddr>,
 }
 
+/// Encode a receive address as the scheduler's opaque `BlockedNet` wait key
+/// (informational: promotion never keys off it, but it names the wait site
+/// in traces and leaves room for per-address policy later).
+fn addr_key(a: VAddr) -> usize {
+    ((a.ip as usize) << 16) | a.port as usize
+}
+
+/// Real (not virtual) sleep via the raw syscall — the poller's back-off must
+/// consume real time only: no interposed symbols, no virtual-clock movement,
+/// no scheduler interaction, so waiting leaves zero deterministic footprint.
+fn real_sleep_us(us: u64) {
+    let ts = libc::timespec {
+        tv_sec: 0,
+        #[allow(clippy::cast_possible_wrap)] // us is tiny
+        tv_nsec: (us * 1_000) as _,
+    };
+    // SAFETY: valid timespec pointer; remainder ignored (EINTR is fine for a
+    // best-effort back-off).
+    unsafe {
+        libc::syscall(
+            libc::SYS_clock_nanosleep,
+            libc::CLOCK_MONOTONIC,
+            0,
+            &raw const ts,
+            core::ptr::null_mut::<libc::timespec>(),
+        );
+    }
+}
+
 type SockRef = Arc<Mutex<Sock>>;
 type SockTable = Mutex<Vec<(c_int, SockRef)>>;
 
@@ -145,6 +184,10 @@ fn broker_call(sock: &mut Sock, req: &ToBroker) -> Option<FromBroker> {
     write_to_broker(&mut io, req).ok()?;
     read_from_broker(&mut io).ok()
 }
+
+/// Real-time back-off between broker polls once a process is otherwise idle.
+/// Consumes real time only — no virtual clock, no scheduler entropy.
+const POLL_BACKOFF_US: u64 = 50;
 
 /// Parse a `sockaddr_in` into a [`VAddr`]. `None` for null/short/non-INET.
 fn parse_addr(addr: *const sockaddr, len: socklen_t) -> Option<VAddr> {
@@ -387,14 +430,37 @@ pub unsafe extern "C" fn recvfrom(
             }
             let nonblock = flags & libc::MSG_DONTWAIT != 0;
             let managed = s.sched_enabled && current_tid().is_some();
+            let deliver = |src: VAddr, payload: &[u8]| {
+                let n = payload.len().min(len);
+                // SAFETY: caller guarantees buf valid for len writes; n <= len.
+                unsafe {
+                    core::ptr::copy_nonoverlapping(payload.as_ptr(), buf.cast::<u8>(), n);
+                }
+                write_addr(src, src_addr, src_len);
+                #[allow(clippy::cast_possible_wrap)] // datagram sizes are tiny
+                {
+                    n as ssize_t
+                }
+            };
             loop {
                 let addr = sock.lock().unwrap().local;
                 let Some(addr) = addr else {
                     set_errno(libc::EINVAL); // recv on an unbound socket
                     return -1;
                 };
-                // Managed threads must not park inside the broker (the token
-                // would be lost to real-time races); they poll instead.
+                // A managed *blocking* recv defers delivery to a scheduler
+                // idle point: park as `BlockedNet` before polling so a
+                // datagram is never consumed while a sibling is runnable.
+                // That keeps the local thread interleaving independent of
+                // cross-process arrival timing, and the park is entropy-free
+                // (see `Scheduler::net_block`) — it returns only once the
+                // process is otherwise idle and this thread was promoted to
+                // poll. Managed threads must not block *inside* the broker
+                // (the token would be lost to real-time races), so the broker
+                // request itself stays non-blocking for them.
+                if managed && !nonblock {
+                    s.sched.net_block(addr_key(addr));
+                }
                 let blocking = !nonblock && !managed;
                 let req = ToBroker::Recv {
                     addr,
@@ -410,16 +476,8 @@ pub unsafe extern "C" fn recvfrom(
                 // into the guest clock would break same-seed determinism.
                 match reply {
                     Some(FromBroker::Deliver { src, payload, .. }) => {
-                        let n = payload.len().min(len);
-                        // SAFETY: caller guarantees buf valid for len writes;
-                        // n <= len.
-                        unsafe {
-                            core::ptr::copy_nonoverlapping(payload.as_ptr(), buf.cast::<u8>(), n);
-                        }
-                        write_addr(src, src_addr, src_len);
-                        shim_trace!(s, "recvfrom({addr}) <- {src}, {n}B");
-                        #[allow(clippy::cast_possible_wrap)] // datagram sizes are tiny
-                        return n as ssize_t;
+                        shim_trace!(s, "recvfrom({addr}) <- {src}, {}B", payload.len());
+                        return deliver(src, &payload);
                     }
                     Some(FromBroker::Empty { .. }) => {
                         if nonblock {
@@ -427,8 +485,10 @@ pub unsafe extern "C" fn recvfrom(
                             return -1;
                         }
                         if managed {
-                            // The Phase 2 yield point: let the sender run.
-                            s.sched.yield_now("net_recv_wait");
+                            // Nothing available yet: pace the idle re-poll in
+                            // real time (no virtual clock, no entropy) and
+                            // loop to re-park until a datagram arrives.
+                            real_sleep_us(POLL_BACKOFF_US);
                             continue;
                         }
                         // Unmanaged and blocking=true returned Empty: broker
