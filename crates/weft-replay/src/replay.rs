@@ -381,7 +381,7 @@ mod tests {
         let out = replay_log(&log, Vec::new(), None).unwrap();
         assert!(!out.identical);
         let d = out.divergence.unwrap();
-        assert!(d.recorded != d.replayed);
+        assert_ne!(d.recorded, d.replayed);
     }
 
     #[test]

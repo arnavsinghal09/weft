@@ -2,6 +2,8 @@
 //!
 //! Goal: parser never panics, always returns clear errors.
 
+use std::fmt::Write as _;
+
 use weft_scenario::parse_scenario;
 
 #[test]
@@ -264,7 +266,7 @@ fn parser_never_panics_on_many_nodes() {
         if i > 0 {
             json.push(',');
         }
-        json.push_str(&format!(r#"{{"node_id":{i},"program":"p","args":[]}}"#));
+        let _ = write!(json, r#"{{"node_id":{i},"program":"p","args":[]}}"#);
     }
 
     json.push_str("]}");
@@ -285,10 +287,11 @@ fn parser_never_panics_on_huge_event_list() {
         if i > 0 {
             json.push(',');
         }
-        json.push_str(&format!(
+        let _ = write!(
+            json,
             r#"{{"time_ns":{},"action":{{"type":"crash","node_id":0}}}}"#,
             i * 1000
-        ));
+        );
     }
 
     json.push_str("]}");

@@ -75,8 +75,8 @@ pub unsafe extern "C" fn gettimeofday(tv: *mut timeval, tz: *mut c_void) -> c_in
     };
     let ns = s.clock.now_real_ns();
     if !tv.is_null() {
-        // SAFETY: tv checked non-null; valid per the libc contract.
         #[allow(clippy::cast_possible_wrap)] // virtual times stay far below i64::MAX
+        // SAFETY: tv checked non-null; valid per the libc contract.
         unsafe {
             (*tv).tv_sec = (ns / NANOS_PER_SEC) as time_t;
             (*tv).tv_usec = ((ns % NANOS_PER_SEC) / 1_000) as _;

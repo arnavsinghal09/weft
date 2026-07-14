@@ -163,8 +163,10 @@ impl FaultModel {
             };
         }
         let mut delay = self.latency.sample(unit(&mut state));
-        if self.bandwidth_bps > 0 {
-            let serialize = (len as u64).saturating_mul(1_000_000_000) / self.bandwidth_bps;
+        if let Some(serialize) = (len as u64)
+            .saturating_mul(1_000_000_000)
+            .checked_div(self.bandwidth_bps)
+        {
             delay = delay.saturating_add(serialize);
         }
         Fate {

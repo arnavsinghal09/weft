@@ -140,7 +140,7 @@ pub fn run_fuzz(cfg: &FuzzConfig) -> Result<FuzzReport, String> {
 
     // Phase 2 — shrink each distinct violation from its smallest seed.
     let mut keys: Vec<(ViolationKey, Hit)> = found.into_inner().unwrap().into_iter().collect();
-    keys.sort_by(|a, b| a.0.to_string().cmp(&b.0.to_string()));
+    keys.sort_by_key(|a| a.0.to_string());
     let violations: Mutex<Vec<Found>> = Mutex::new(Vec::new());
     std::thread::scope(|s| {
         for (key, (message, mut seeds_hit)) in keys {
@@ -189,7 +189,7 @@ pub fn run_fuzz(cfg: &FuzzConfig) -> Result<FuzzReport, String> {
     });
 
     let mut violations = violations.into_inner().unwrap();
-    violations.sort_by(|a, b| a.key.to_string().cmp(&b.key.to_string()));
+    violations.sort_by_key(|a| a.key.to_string());
     Ok(FuzzReport {
         seeds_tested: tested.load(Ordering::Relaxed),
         seeds_failed: failed.load(Ordering::Relaxed),

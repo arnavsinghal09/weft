@@ -58,7 +58,7 @@ fn start_broker(seed: u64, spec: &str) -> (PathBuf, Arc<Broker>) {
     static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let path =
-        std::env::temp_dir().join(format!("weft-test-broker-{}-{n}.sock", std::process::id(),));
+        std::env::temp_dir().join(format!("weft-test-broker-{}-{n}.sock", std::process::id()));
     let _ = std::fs::remove_file(&path);
     let model = config::parse(seed, spec).unwrap();
     let broker = Arc::new(Broker::bind(&path, model).unwrap());
