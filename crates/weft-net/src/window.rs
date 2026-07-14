@@ -83,10 +83,12 @@ struct ConnState {
     /// as last observed. Kept even while blocked, so a woken receiver resumes
     /// from `max(this, deliv_vt)` rather than losing its place.
     frontier: u64,
-    /// True while the guest is parked in a blocking recv: it will emit nothing
-    /// until the broker delivers to it, so it does not stall sealing (its
-    /// effective frontier is `INFINITY`).
+    /// True while the guest is parked in a blocking recv.
     blocked: bool,
+    /// The address a blocked guest is receiving on: its next emission is caused
+    /// by a delivery there, so a pending send targeting it bounds when it can
+    /// re-emit (see [`WindowSequencer::conn_bound`]).
+    wait_addr: Option<VAddr>,
     /// Next program-order index to hand out.
     next_seq: u64,
     /// Whether this connection still counts toward the sealing quorum (false
@@ -94,42 +96,70 @@ struct ConnState {
     live: bool,
 }
 
-impl ConnState {
-    /// The value this connection contributes to the sealing quorum: its real
-    /// lower bound, or `INFINITY` when it cannot emit (blocked, or not live).
-    fn effective_frontier(&self) -> u64 {
-        if self.live && !self.blocked {
-            self.frontier
-        } else {
-            INFINITY
-        }
-    }
-}
-
 /// The windowed sequencer. One per broker (multi-host mode).
 pub struct WindowSequencer {
     width: u64,
+    /// Lookahead `L_min`: the least delay any delivery can incur. A send
+    /// admitted at `local_vt` cannot deliver before `local_vt + lookahead`, so
+    /// deliveries with `deliv_vt < horizon + lookahead` are safe to release
+    /// even though their own window has not sealed (CMB lookahead). Windowed
+    /// request/reply needs `lookahead > 0` to make progress.
+    lookahead: u64,
     conns: HashMap<ConnId, ConnState>,
     /// Admitted-but-not-yet-assigned sends, in arrival order (irrelevant).
     pending: Vec<SeqSend>,
     /// The sealed horizon: every window below this is sealed and assigned.
-    /// `deliv_vt < horizon` is the poppable test for arrival-gated recv.
     horizon: u64,
 }
 
 impl WindowSequencer {
-    /// Create a sequencer with window width `width` ns (must be non-zero).
+    /// Create a sequencer with window width `width` ns and lookahead
+    /// `lookahead` ns (the network's minimum delay, `FaultModel::min_delay_ns`).
     ///
     /// # Panics
     /// Panics if `width` is zero — a zero-width window can never seal.
     #[must_use]
-    pub fn new(width: u64) -> Self {
+    pub fn new(width: u64, lookahead: u64) -> Self {
         assert!(width > 0, "window width must be non-zero");
         Self {
             width,
+            lookahead,
             conns: HashMap::new(),
             pending: Vec::new(),
             horizon: 0,
+        }
+    }
+
+    /// The delivery-visibility horizon: a queued delivery is poppable once its
+    /// `deliv_vt` is below this (arrival-gated recv with lookahead, §4.3).
+    #[must_use]
+    pub fn pop_horizon(&self) -> u64 {
+        self.horizon.saturating_add(self.lookahead)
+    }
+
+    /// What connection `c` contributes to the sealing quorum: its frontier when
+    /// running; when blocked on recv, the earliest virtual time it could react
+    /// to an incoming datagram — the least `local_vt` of a pending send aimed
+    /// at its wait address, plus lookahead (a blocked guest cannot emit before
+    /// something is delivered to it). `INFINITY` when nothing can wake it, or
+    /// once it is closed.
+    fn conn_bound(&self, c: &ConnState) -> u64 {
+        if !c.live {
+            return INFINITY;
+        }
+        if !c.blocked {
+            return c.frontier;
+        }
+        let react = c.wait_addr.and_then(|a| {
+            self.pending
+                .iter()
+                .filter(|s| s.dst == a)
+                .map(|s| s.local_vt)
+                .min()
+        });
+        match react {
+            Some(v) => c.frontier.max(v.saturating_add(self.lookahead)),
+            None => INFINITY,
         }
     }
 
@@ -144,6 +174,7 @@ impl WindowSequencer {
                 node_id,
                 frontier: 0,
                 blocked: false,
+                wait_addr: None,
                 next_seq: 0,
                 live: true,
             },
@@ -197,6 +228,10 @@ impl WindowSequencer {
         let conn_seq = c.next_seq;
         c.next_seq += 1;
         c.frontier = local_vt;
+        // Emitting a send means the connection is active, not parked: rejoin
+        // the sealing quorum (covers a socket shared between a sending and a
+        // receiving thread, where a `Park` may still be in effect).
+        c.blocked = false;
         let (host_id, node_id) = (c.host_id, c.node_id);
         self.pending.push(SeqSend {
             conn,
@@ -230,17 +265,21 @@ impl WindowSequencer {
             });
         }
         c.frontier = f;
+        // An explicit frontier advance comes from a running (not parked) guest.
+        c.blocked = false;
         Ok(())
     }
 
-    /// Mark a connection parked in a blocking receive at LVT `at_vt`: it
-    /// leaves the sealing quorum (effective frontier `INFINITY`) but keeps its
-    /// lower bound so [`Self::wake`] can resume it correctly (§4.2,
-    /// release-on-block). `at_vt` advances the lower bound monotonically.
-    pub fn block(&mut self, conn: ConnId, at_vt: u64) {
+    /// Mark a connection parked in a blocking receive on `addr` at LVT `at_vt`.
+    /// While blocked it contributes its reactivation bound, not its raw
+    /// frontier, to sealing (see [`Self::conn_bound`]), so it neither stalls
+    /// windows that cannot feed it nor lets a window it *will* emit into seal
+    /// early. `at_vt` advances its lower bound monotonically.
+    pub fn block(&mut self, conn: ConnId, at_vt: u64, addr: VAddr) {
         if let Some(c) = self.conns.get_mut(&conn) {
             c.frontier = c.frontier.max(at_vt);
             c.blocked = true;
+            c.wait_addr = Some(addr);
         }
     }
 
@@ -252,6 +291,7 @@ impl WindowSequencer {
         if let Some(c) = self.conns.get_mut(&conn) {
             if c.blocked {
                 c.blocked = false;
+                c.wait_addr = None;
                 c.frontier = c.frontier.max(deliv_vt);
             }
         }
@@ -279,7 +319,7 @@ impl WindowSequencer {
         let min_frontier = self
             .conns
             .values()
-            .map(ConnState::effective_frontier)
+            .map(|c| self.conn_bound(c))
             .min()
             .unwrap_or(INFINITY);
         let new_horizon = if min_frontier == INFINITY {
@@ -313,10 +353,7 @@ impl WindowSequencer {
     #[must_use]
     pub fn is_quiescent(&self) -> bool {
         self.pending.is_empty()
-            && self
-                .conns
-                .values()
-                .all(|c| c.effective_frontier() == INFINITY)
+            && self.conns.values().all(|c| self.conn_bound(c) == INFINITY)
     }
 }
 
@@ -340,7 +377,7 @@ mod tests {
     }
 
     fn run(width: u64, script: &[Act]) -> Vec<(ConnId, u64, u16, u64)> {
-        let mut s = WindowSequencer::new(width);
+        let mut s = WindowSequencer::new(width, 0);
         let mut out = Vec::new();
         let collect = |assigned: Vec<SeqSend>, out: &mut Vec<(ConnId, u64, u16, u64)>| {
             for op in assigned {
@@ -458,7 +495,7 @@ mod tests {
     fn a_window_holds_until_the_laggard_frontier_crosses() {
         // Window 0 = [0,100). It must not seal while conn 1 is still below 100.
         let width = 100;
-        let mut s = WindowSequencer::new(width);
+        let mut s = WindowSequencer::new(width, 0);
         s.register(0, 0, 0);
         s.register(1, 1, 1);
         s.admit_send(0, 10, addr(0, 1), addr(1, 2), vec![1])
@@ -478,41 +515,47 @@ mod tests {
     }
 
     #[test]
-    fn blocking_recv_releases_the_frontier() {
-        // A blocked receiver must not stall sealing: once it releases, the
-        // sender's already-buffered window seals.
+    fn blocked_receiver_bounds_sealing_by_reactivation() {
+        // A blocked receiver with an inbound pending send holds the window it
+        // will emit into: it contributes its reactivation bound (earliest
+        // inbound send local_vt + lookahead), not +inf. With lookahead the
+        // send's own window can still seal so the delivery is released.
         let width = 100;
-        let mut s = WindowSequencer::new(width);
+        let lookahead = 100;
+        let mut s = WindowSequencer::new(width, lookahead);
         s.register(0, 0, 0); // sender
-        s.register(1, 1, 1); // receiver, will block
+        s.register(1, 1, 1); // receiver, waits on addr(1, 2)
         s.admit_send(0, 30, addr(0, 1), addr(1, 2), vec![7])
             .unwrap();
         s.declare_frontier(0, 1000).unwrap();
         assert!(s.seal().is_empty(), "receiver at frontier 0 blocks sealing");
-        s.block(1, 0); // receiver enters blocking recv -> effective frontier +inf
+        s.block(1, 0, addr(1, 2));
+        // reactivation bound = 30 + lookahead(100) = 130 -> horizon floor to 100.
         let out = s.seal();
-        assert_eq!(out.len(), 1, "release-on-block did not free the window");
+        assert_eq!(out.len(), 1, "the send's window (local_vt 30 < 100) must seal");
+        assert_eq!(s.horizon(), 100);
+        // The delivery (deliv >= 30) is poppable: horizon + lookahead = 200.
+        assert_eq!(s.pop_horizon(), 200);
     }
 
     #[test]
-    fn wake_restores_the_quorum_at_the_delivery_time() {
-        // A blocked receiver does not bound the horizon; once woken by a
-        // delivery at 250 it rejoins the quorum at 250, bounding sealing to
-        // window floor(250/100) = 200.
+    fn a_blocked_receiver_with_no_inbound_does_not_stall() {
+        // A blocked receiver waiting on an address nobody sends to cannot be
+        // woken, so it contributes +inf and never stalls sealing; once woken
+        // it rejoins the quorum at the delivery time.
         let width = 100;
-        let mut s = WindowSequencer::new(width);
+        let mut s = WindowSequencer::new(width, 0);
         s.register(0, 0, 0); // sender
         s.register(1, 1, 1); // receiver
-        s.block(1, 40);
+        s.block(1, 40, addr(9, 9)); // nobody sends to addr(9, 9)
         s.declare_frontier(0, 10_000).unwrap();
         s.seal();
-        // Blocked receiver does not stall sealing: the sender alone bounds it.
-        assert_eq!(s.horizon(), 10_000, "blocked receiver wrongly stalled sealing");
+        assert_eq!(s.horizon(), 10_000, "unwakeable receiver wrongly stalled sealing");
 
-        let mut s2 = WindowSequencer::new(width);
+        let mut s2 = WindowSequencer::new(width, 0);
         s2.register(0, 0, 0);
         s2.register(1, 1, 1);
-        s2.block(1, 40);
+        s2.block(1, 40, addr(9, 9));
         s2.wake(1, 250);
         s2.declare_frontier(0, 10_000).unwrap();
         s2.seal();
@@ -522,7 +565,7 @@ mod tests {
     #[test]
     fn quiescence_when_all_release() {
         let width = 100;
-        let mut s = WindowSequencer::new(width);
+        let mut s = WindowSequencer::new(width, 0);
         s.register(0, 0, 0);
         s.admit_send(0, 5, addr(0, 1), addr(1, 2), vec![1]).unwrap();
         assert!(!s.is_quiescent());
@@ -535,7 +578,7 @@ mod tests {
 
     #[test]
     fn non_monotone_local_vt_is_rejected() {
-        let mut s = WindowSequencer::new(100);
+        let mut s = WindowSequencer::new(100, 0);
         s.register(0, 0, 0);
         s.admit_send(0, 50, addr(0, 1), addr(1, 2), vec![1])
             .unwrap();
@@ -554,7 +597,7 @@ mod tests {
 
     #[test]
     fn op_in_a_sealed_window_is_rejected() {
-        let mut s = WindowSequencer::new(100);
+        let mut s = WindowSequencer::new(100, 0);
         s.register(0, 0, 0);
         s.register(1, 1, 1);
         s.declare_frontier(0, 300).unwrap();
@@ -572,7 +615,7 @@ mod tests {
 
     #[test]
     fn unknown_connection_is_rejected() {
-        let mut s = WindowSequencer::new(100);
+        let mut s = WindowSequencer::new(100, 0);
         let err = s
             .admit_send(9, 10, addr(0, 1), addr(1, 2), vec![1])
             .unwrap_err();

@@ -93,11 +93,12 @@ struct State {
 
 impl State {
     fn new(model: FaultModel, observer: Option<Observer>, window_ns: u64) -> Self {
+        let lookahead = model.min_delay_ns();
         Self {
             core: Core::new(model),
             observer,
             max_skew_ns: 0,
-            seq: (window_ns > 0).then(|| WindowSequencer::new(window_ns)),
+            seq: (window_ns > 0).then(|| WindowSequencer::new(window_ns, lookahead)),
         }
     }
 
@@ -396,12 +397,12 @@ fn handle_conn(
                 let _ = write_from_broker(&mut writer, &FromBroker::Ack { vt });
             }
             ToBroker::Recv {
-                addr: _,
+                addr,
                 blocking,
                 local_vt,
             } => {
                 let out = if windowed {
-                    recv_windowed(shared, global_time, id, blocking, local_vt)
+                    recv_windowed(shared, global_time, id, addr, blocking, local_vt)
                 } else {
                     recv_next(shared, id, blocking, local_vt)
                 };
@@ -412,6 +413,17 @@ fn handle_conn(
                 // connection's promise and try to seal. Ignored otherwise.
                 let vt = if windowed {
                     declare_frontier(shared, global_time, id, local_vt)
+                } else {
+                    shared.0.lock().unwrap().core.vt()
+                };
+                let _ = write_from_broker(&mut writer, &FromBroker::Ack { vt });
+            }
+            ToBroker::Park { addr, local_vt } => {
+                // A managed receiver parking on recv (windowed only): leave the
+                // sealing quorum so the windows that will feed it can seal.
+                // Ignored otherwise.
+                let vt = if windowed {
+                    park(shared, global_time, id, addr, local_vt)
                 } else {
                     shared.0.lock().unwrap().core.vt()
                 };
@@ -530,6 +542,29 @@ fn declare_frontier(
     st.core.vt()
 }
 
+/// Windowed park: a managed receiver announces it is blocking on recv, so it
+/// leaves the sealing quorum (`block`) and no longer stalls the windows that
+/// will feed it. A managed receiver polls the broker non-blocking (so a
+/// sibling thread can keep running), which means it cannot itself advance the
+/// horizon it waits on — this explicit signal is what lets the horizon move.
+fn park(
+    shared: &Arc<(Mutex<State>, Condvar)>,
+    global_time: &Arc<AtomicU64>,
+    conn: u64,
+    addr: VAddr,
+    local_vt: u64,
+) -> u64 {
+    let (lock, cvar) = &**shared;
+    let mut st = lock.lock().unwrap();
+    st.track_skew(local_vt);
+    if let Some(seq) = st.seq.as_mut() {
+        seq.block(conn, local_vt, addr);
+    }
+    st.seal_and_feed(global_time);
+    cvar.notify_all();
+    st.core.vt()
+}
+
 /// Windowed receive: deliver only datagrams whose delivery time has fallen
 /// below the sealed horizon (arrival-gated, design doc §4.3), so visibility
 /// never depends on how early a send was admitted in real time. While a
@@ -540,6 +575,7 @@ fn recv_windowed(
     shared: &Arc<(Mutex<State>, Condvar)>,
     global_time: &Arc<AtomicU64>,
     id: u64,
+    addr: VAddr,
     blocking: bool,
     local_vt: u64,
 ) -> FromBroker {
@@ -548,7 +584,7 @@ fn recv_windowed(
     st.track_skew(local_vt);
     let mut parked = false;
     loop {
-        let horizon = st.seq.as_ref().map_or(u64::MAX, WindowSequencer::horizon);
+        let horizon = st.seq.as_ref().map_or(u64::MAX, WindowSequencer::pop_horizon);
         let result = st.core.recv_before(id, horizon);
         match &result {
             RecvResult::Delivered {
@@ -591,7 +627,7 @@ fn recv_windowed(
                 }
                 if !parked {
                     if let Some(seq) = st.seq.as_mut() {
-                        seq.block(id, local_vt);
+                        seq.block(id, local_vt, addr);
                     }
                     parked = true;
                     // Leaving the quorum can unblock a window that will feed us.

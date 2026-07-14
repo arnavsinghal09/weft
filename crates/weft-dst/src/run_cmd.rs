@@ -30,6 +30,10 @@ Options:
                       partition=0+1|2 (an empty SPEC is a reliable network)
   --nodes <N>         With --net: launch N instances of the program, node ids
                       0..N-1 (default 1)
+  --window <NS>       With --net: run the windowed multi-host sequencer with a
+                      window width of NS nanoseconds, making cross-process
+                      delivery order a pure function of the seed (default: off,
+                      single-host arrival-routed broker)
   --record <LOG>      With --net: record every broker operation to <LOG> for
                       later `weft replay`; a .gz path is gzip-compressed
                       (see docs/recording-format.md)
@@ -49,6 +53,10 @@ pub struct RunOpts {
     /// Network-condition spec; `Some` engages the broker (even if empty).
     pub net: Option<String>,
     pub nodes: u32,
+    /// Multi-host clock-protocol window width in ns (0 = single-host,
+    /// arrival-routed broker). Requires `--net`. See
+    /// docs/MULTI_HOST_CLOCK_PROTOCOL.md.
+    pub window: u64,
     /// Record broker operations to this weft-log file (requires `--net`).
     pub record: Option<PathBuf>,
     pub shim: Option<PathBuf>,
@@ -71,6 +79,7 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
     let mut strategy = Strategy::default();
     let mut net = None;
     let mut nodes = 1u32;
+    let mut window = 0u64;
     let mut record = None;
     let mut shim = None;
     let mut program = Vec::new();
@@ -123,6 +132,20 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
                     return Err("--nodes must be in 1..=64".to_string());
                 }
             }
+            Some("--window") => {
+                let v = args
+                    .next()
+                    .ok_or_else(|| "--window requires a width in ns".to_string())?;
+                let v = v
+                    .to_str()
+                    .ok_or_else(|| "--window value is not UTF-8".to_string())?;
+                window = v
+                    .parse()
+                    .map_err(|_| format!("--window {v:?} is not a non-negative integer (ns)"))?;
+                if window == 0 {
+                    return Err("--window width must be non-zero (ns)".to_string());
+                }
+            }
             Some("--record") => {
                 let v = args
                     .next()
@@ -159,6 +182,9 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
     if record.is_some() && net.is_none() {
         return Err("--record requires --net (recording captures broker operations)".to_string());
     }
+    if window > 0 && net.is_none() {
+        return Err("--window requires --net (the windowed sequencer orders broker ops)".to_string());
+    }
     Ok(RunOpts {
         seed,
         trace,
@@ -167,6 +193,7 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
         strategy,
         net,
         nodes,
+        window,
         record,
         shim,
         program,
@@ -266,6 +293,19 @@ pub fn run_cluster(opts: &RunOpts) -> Result<i32, String> {
     let spec = opts.net.as_deref().unwrap_or("");
     let model = weft_net::config::parse(opts.seed, spec).map_err(|e| e.to_string())?;
 
+    // Windowed mode needs lookahead (minimum latency) >= the window width, or a
+    // blocking receiver's reactivation bound stalls its own delivery (the L=0
+    // deadlock — docs/MULTI_HOST_CLOCK_PROTOCOL.md §5). Warn rather than abort:
+    // pure-sink workloads with no request/reply can still make progress.
+    if opts.window > 0 && model.min_delay_ns() < opts.window {
+        eprintln!(
+            "[weft] warning: --window {} ns exceeds the network's minimum latency {} ns; \
+             windowed request/reply can deadlock (need lookahead >= window)",
+            opts.window,
+            model.min_delay_ns()
+        );
+    }
+
     // A per-run socket path (pid disambiguates concurrent weft runs).
     let sock_path = std::env::temp_dir().join(format!("weft-broker-{}.sock", std::process::id()));
     let _ = std::fs::remove_file(&sock_path);
@@ -279,9 +319,10 @@ pub fn run_cluster(opts: &RunOpts) -> Result<i32, String> {
                 version: weft_replay::log::VERSION,
                 seed: opts.seed,
                 net: spec.to_string(),
-                // Single-host recording: latency-only delivery. The windowed
-                // multi-host path records the real window width here.
-                window_ns: 0,
+                // The windowed multi-host path records the real window width
+                // so replay reconstructs the same sealed order; single-host
+                // (window 0) keeps latency-only delivery.
+                window_ns: opts.window,
                 meta: weft_replay::log::Meta {
                     weft_version: Some(crate::version().to_string()),
                     ..weft_replay::log::Meta::default()
@@ -295,7 +336,9 @@ pub fn run_cluster(opts: &RunOpts) -> Result<i32, String> {
         None => None,
     };
     let observer = recorder.as_ref().map(weft_replay::Recorder::observer);
-    let broker = weft_net::Broker::bind_with(&sock_path, model, observer)
+    // window 0 selects the single-host arrival-routed broker; a non-zero width
+    // engages the windowed sequencer (docs/MULTI_HOST_CLOCK_PROTOCOL.md).
+    let broker = weft_net::Broker::bind_with_window(&sock_path, model, observer, opts.window)
         .map_err(|e| format!("broker bind: {e}"))?;
     let broker = std::sync::Arc::new(broker);
     {
@@ -309,6 +352,9 @@ pub fn run_cluster(opts: &RunOpts) -> Result<i32, String> {
         cmd.env(weft_abi::ENV_BROKER, &sock_path)
             .env(weft_abi::ENV_NODE_ID, node.to_string())
             .env(weft_abi::ENV_NET, spec);
+        if opts.window > 0 {
+            cmd.env(weft_abi::ENV_WINDOW_NS, opts.window.to_string());
+        }
         let child = cmd
             .spawn()
             .map_err(|e| format!("failed to spawn node {node}: {e}"))?;

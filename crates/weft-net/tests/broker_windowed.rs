@@ -15,6 +15,10 @@ use weft_net::wire::{read_from_broker, write_to_broker, FromBroker, ToBroker, VA
 use weft_net::{config, Broker};
 
 const WINDOW_NS: u64 = 100;
+// Windowed mode needs lookahead (minimum latency) >= window width, else a
+// receiver's reactivation bound equals a send's own time and stalls its
+// delivery. Fixed 100ns latency gives exactly that lookahead.
+const NET_SPEC: &str = "latency=fixed:100";
 
 struct Client(UnixStream);
 
@@ -70,7 +74,7 @@ fn start(seed: u64, recorded: &Arc<Mutex<Recording>>) -> PathBuf {
     let path =
         std::env::temp_dir().join(format!("weft-win-broker-{}-{n}.sock", std::process::id()));
     let _ = std::fs::remove_file(&path);
-    let model = config::parse(seed, "").unwrap();
+    let model = config::parse(seed, NET_SPEC).unwrap();
     let sink = Arc::clone(recorded);
     let observer: weft_net::broker::Observer = Box::new(move |_vt, ev| {
         if let Observed::Send {

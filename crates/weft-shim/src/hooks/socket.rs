@@ -463,6 +463,10 @@ pub unsafe extern "C" fn recvfrom(
             }
             let nonblock = flags & libc::MSG_DONTWAIT != 0;
             let managed = s.sched_enabled && current_tid().is_some();
+            let windowed = window_ns() > 0;
+            // Declared once per blocking recv: the broker is told (via `Park`)
+            // that this connection is waiting, so the windows feeding it seal.
+            let mut park_declared = false;
             let deliver = |src: VAddr, payload: &[u8]| {
                 let n = payload.len().min(len);
                 // SAFETY: caller guarantees buf valid for len writes; n <= len.
@@ -493,6 +497,20 @@ pub unsafe extern "C" fn recvfrom(
                 // request itself stays non-blocking for them.
                 if managed && !nonblock {
                     s.sched.net_block(addr_key(addr));
+                    // Once this whole process is idle (net_block returned, so
+                    // no sibling is runnable) tell the windowed broker we are
+                    // parked, so the cluster can seal the window that feeds us.
+                    // A managed receiver polls non-blocking and so cannot
+                    // advance the horizon it is waiting on by itself.
+                    if windowed && !park_declared {
+                        let req = ToBroker::Park {
+                            addr,
+                            local_vt: s.clock.now_mono_ns(),
+                        };
+                        let mut guard = sock.lock().unwrap();
+                        let _ = broker_call(&mut guard, &req);
+                        park_declared = true;
+                    }
                 }
                 let blocking = !nonblock && !managed;
                 let req = ToBroker::Recv {

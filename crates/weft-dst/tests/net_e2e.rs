@@ -58,11 +58,27 @@ fn built() -> &'static PathBuf {
 /// Run under `weft run --net`, killing the whole run after 30s so a
 /// simulation bug can never wedge the suite. Returns (stdout, exit code).
 fn weft_net_run(seed: u64, net: &str, nodes: u32, program: &str) -> (String, i32) {
-    let mut child = Command::new(weft_bin())
-        .arg("run")
+    weft_net_run_window(seed, net, nodes, 0, program)
+}
+
+/// [`weft_net_run`] with a windowed multi-host sequencer of width `window` ns
+/// (0 = single-host).
+fn weft_net_run_window(
+    seed: u64,
+    net: &str,
+    nodes: u32,
+    window: u64,
+    program: &str,
+) -> (String, i32) {
+    let mut cmd = Command::new(weft_bin());
+    cmd.arg("run")
         .args(["--seed", &seed.to_string()])
         .args(["--net", net])
-        .args(["--nodes", &nodes.to_string()])
+        .args(["--nodes", &nodes.to_string()]);
+    if window > 0 {
+        cmd.args(["--window", &window.to_string()]);
+    }
+    let mut child = cmd
         .arg("--shim")
         .arg(shim_path())
         .arg("--")
@@ -117,6 +133,38 @@ fn two_processes_exchange_messages_deterministically() {
     // ...and different for a different seed.
     let (other, _) = weft_net_run(7, "", 2, "pingpong");
     assert_ne!(sorted(&first), sorted(&other));
+}
+
+/// The windowed multi-host sequencer keeps a request/reply exchange live and
+/// deterministic. With lookahead (minimum latency) == window width, the reply
+/// is admissible after the request's window seals; the seed-derived payload is
+/// identical across runs and differs by seed. (A window wider than the
+/// lookahead would risk the L=0 deadlock — see the run_cmd warning.)
+#[test]
+fn windowed_multihost_pingpong_is_live_and_deterministic() {
+    let sorted = |s: &str| {
+        let mut v: Vec<&str> = s.lines().collect();
+        v.sort_unstable();
+        v.join("\n")
+    };
+    let net = "latency=fixed:1000000";
+    let (first, code) = weft_net_run_window(42, net, 2, 1_000_000, "pingpong");
+    assert_eq!(code, 0, "windowed pingpong did not complete:\n{first}");
+    assert!(
+        first.contains("PING:") && first.contains("PONG:"),
+        "bad output: {first}"
+    );
+    for _ in 0..5 {
+        let (again, code) = weft_net_run_window(42, net, 2, 1_000_000, "pingpong");
+        assert_eq!(code, 0);
+        assert_eq!(
+            sorted(&first),
+            sorted(&again),
+            "windowed run not deterministic"
+        );
+    }
+    let (other, _) = weft_net_run_window(7, net, 2, 1_000_000, "pingpong");
+    assert_ne!(sorted(&first), sorted(&other), "different seed should differ");
 }
 
 /// The Phase 3 bug proof: under seeded latency variance the replica's missing

@@ -176,9 +176,29 @@ quickstart. Know its edges before you rely on it:
   (docs/MULTI_HOST_CLOCK_PROTOCOL.md §3). The broker's `Ack` logical clock is
   still never merged (it depends on cross-process arrival order). Both are
   inert without `WEFT_WINDOW_NS`, so single-host runs are unchanged (the full
-  Linux net e2e suite still passes). The windowed/TCP runtime path is not yet
-  exercised end to end — that needs the remote process lifecycle and a
-  two-host validation run.
+  Linux net e2e suite still passes).
+
+- Windowed multi-host runs end to end (`weft run --net … --window <NS>`): the
+  orchestrator hosts a windowed broker, sets `WEFT_WINDOW_NS` on each node, and
+  records the window width. Two coupled corrections were needed to make
+  request/reply sound — the design's "release-on-block to +∞" (§4.2) is
+  **unsound** on its own: a blocked receiver released to +∞ lets the cluster
+  seal every window, so the receiver's reaction (admitted at its post-delivery
+  time) lands in an already-sealed window and is rejected `LateOp`. The fixes:
+  (1) a blocked connection contributes its **reactivation bound** — the
+  earliest pending send aimed at its wait address, plus lookahead — not +∞, so
+  the window it will emit into stays open; (2) deliveries become poppable at
+  `deliv_vt < horizon + L_min` (**CMB lookahead**, `FaultModel::min_delay_ns`),
+  the previously-deferred OQ-4. This makes windowed mode require lookahead
+  (minimum latency) ≥ window width; a smaller lookahead risks the classic L=0
+  deadlock and the orchestrator warns. A managed receiver also sends an
+  explicit `Park{addr}` when it goes idle, since it polls the broker
+  non-blocking and cannot otherwise advance the horizon it waits on. Verified
+  end to end on Linux: a windowed 2-node request/reply (`pingpong`) completes
+  and is byte-identical across 10 runs, differing by seed
+  (`net_e2e::windowed_multihost_pingpong_is_live_and_deterministic`). Still not
+  validated across real containers or on a multi-node consensus workload
+  (Chord/Raft) — that is the next step.
 
 - Entropy-free network waiting in the scheduler (`Status::BlockedNet`,
   `Scheduler::net_block`): a managed blocking `recvfrom` now parks *before*

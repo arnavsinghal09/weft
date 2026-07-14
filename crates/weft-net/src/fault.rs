@@ -31,6 +31,19 @@ pub enum Latency {
 }
 
 impl Latency {
+    /// The smallest delay this distribution can produce — the lookahead
+    /// `L_min` the windowed multi-host protocol needs (a send admitted now
+    /// cannot deliver before `send_vt + L_min`). `Exponential` can produce an
+    /// arbitrarily small delay, so its floor is 0.
+    #[must_use]
+    pub fn min_ns(self) -> u64 {
+        match self {
+            Self::Fixed(d) => d,
+            Self::Uniform { lo, .. } => lo,
+            Self::Exponential { .. } => 0,
+        }
+    }
+
     /// Sample a delay from a uniform deviate `u` in `[0, 1)`.
     #[must_use]
     #[allow(
@@ -121,6 +134,14 @@ impl FaultModel {
             bandwidth_bps: 0,
             partition: Partition::none(),
         }
+    }
+
+    /// The lookahead `L_min` (ns): the least virtual delay any non-dropped
+    /// datagram can incur. Bandwidth only adds delay, so latency's floor is
+    /// the model's floor. Used by the windowed multi-host sequencer.
+    #[must_use]
+    pub fn min_delay_ns(&self) -> u64 {
+        self.latency.min_ns()
     }
 
     /// Decide the fate of the `seq`-th datagram on the channel `src`→`dst`,

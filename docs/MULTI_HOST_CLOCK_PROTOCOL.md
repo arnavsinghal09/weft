@@ -137,12 +137,27 @@ there is no mandatory extra round-trip in busy phases:
   clock. A guest executing a long stretch of *uninstrumented* pure
   computation advances neither its LVT (nothing intercepted) nor its
   frontier — see failure mode F5.
-- **Release-on-block**: a guest entering **blocking** `Recv` declares
-  `F(g) = +∞` — "I will emit nothing until you deliver to me." This is
-  sound because a single-threaded blocked guest cannot act, and its next
-  action is caused by the delivery, whose virtual time the broker assigns.
-  A guest that exits (connection close after clean `Hello`-goodbye or
-  process exit) is `F(g) = +∞` permanently.
+- **Release-on-block**: a guest entering **blocking** `Recv` stops emitting
+  spontaneously. The original claim here — that it may declare `F(g) = +∞` —
+  is **unsound for request/reply and was corrected in implementation.** If a
+  blocked receiver goes to `+∞`, the whole cluster can seal every window; the
+  receiver's *reaction* to a just-delivered message is then admitted at its
+  post-delivery virtual time, which lands in an already-sealed window and is
+  rejected as a late op. Correct rule: a blocked guest waiting on address `A`
+  contributes its **reactivation bound** — the least `local_vt` of a pending
+  send aimed at `A`, plus lookahead `L_min` (§5) — i.e. the earliest virtual
+  time it could emit once woken. It contributes `+∞` only when *no* pending
+  send targets it (nothing can wake it). Combined with releasing deliveries at
+  `deliv_vt < sealed_horizon + L_min` (the §5 lookahead, no longer optional),
+  this keeps the window a woken guest emits into open until it has emitted.
+  **Consequence: windowed mode requires `L_min ≥ W`** (lookahead at least the
+  window width); with `L_min = 0` a receiver's reactivation bound equals a
+  send's own time and stalls that send's delivery — the degenerate deadlock.
+  A guest that exits (connection close or process exit) is `F(g) = +∞`
+  permanently (nothing more to react to). A managed multi-threaded receiver,
+  which polls the broker non-blocking and so cannot advance the horizon it
+  waits on, announces its block with an explicit `Park{addr, local_vt}`
+  message when it goes idle.
 
 The multi-threaded guest case is where the current implementation has a
 hole that this protocol must close, because the existing **managed-thread
