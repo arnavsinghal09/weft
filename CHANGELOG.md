@@ -191,14 +191,23 @@ quickstart. Know its edges before you rely on it:
   `deliv_vt < horizon + L_min` (**CMB lookahead**, `FaultModel::min_delay_ns`),
   the previously-deferred OQ-4. This makes windowed mode require lookahead
   (minimum latency) ≥ window width; a smaller lookahead risks the classic L=0
-  deadlock and the orchestrator warns. A managed receiver also sends an
-  explicit `Park{addr}` when it goes idle, since it polls the broker
-  non-blocking and cannot otherwise advance the horizon it waits on. Verified
-  end to end on Linux: a windowed 2-node request/reply (`pingpong`) completes
-  and is byte-identical across 10 runs, differing by seed
+  deadlock and the orchestrator warns. Verified end to end on Linux: a windowed
+  2-node request/reply (`pingpong`) completes and is byte-identical across 10
+  runs, differing by seed
   (`net_e2e::windowed_multihost_pingpong_is_live_and_deterministic`). Still not
-  validated across real containers or on a multi-node consensus workload
-  (Chord/Raft) — that is the next step.
+  validated across real containers.
+
+- Deterministic windowed polling for non-blocking receivers (single-shot
+  `Recv`). The windowed broker no longer holds a `Recv`; a non-blocking
+  `recvfrom(MSG_DONTWAIT)` advances the connection's frontier to the guest's
+  current virtual time and returns only datagrams sealed below it, or `EAGAIN`
+  once the pop-horizon reaches that time. The visible message set is therefore
+  a pure function of virtual time, not of how far windows have sealed in real
+  time — the §4.2 "polling-loop nondeterminism" the design flagged. This
+  replaces the earlier `Park{addr}` message (removed). Verified on the 7-node
+  Chord case study (poll-drain + virtualized `usleep` pacing): under
+  `--window 1000 --net latency=uniform:1000-60000 --record` the `chord-check`
+  verdict and every node's received byte stream are identical across 6 runs.
 
 - Entropy-free network waiting in the scheduler (`Status::BlockedNet`,
   `Scheduler::net_block`): a managed blocking `recvfrom` now parks *before*

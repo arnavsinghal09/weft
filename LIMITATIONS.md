@@ -111,8 +111,8 @@ Weft on a distributed system **without `--window`**.
 **(c′) The windowed multi-host broker (`--net … --window <NS>`) removes the
 enqueue-order nondeterminism** by sealing virtual-time windows and ordering
 each window's ops by a seed-derived key instead of arrival
-(docs/MULTI_HOST_CLOCK_PROTOCOL.md). It is **partially validated, with a hard
-precondition, and not yet proven on a consensus workload**:
+(docs/MULTI_HOST_CLOCK_PROTOCOL.md). It is **validated on blocking and
+poll-drain workloads, with a hard precondition**:
   - Validated: a 2-node request/reply (`pingpong`) is live and byte-identical
     across 10 runs and seed-sensitive; a 2-sender ordering workload
     (`netsched`) is identical across 6 runs — both single-host, multi-process,
@@ -123,22 +123,21 @@ precondition, and not yet proven on a consensus workload**:
     but does not abort. Reliable (`--net ""`) and exponential latency have
     `L_min = 0`, so windowed request/reply needs `latency=fixed:N` or
     `uniform:LO-HI` with `LO ≥ W`.
-  - **Known not to work: non-blocking-poll workloads (the Chord case study).**
-    `examples/chord/chord_node.c` drains its socket with `recvfrom(MSG_DONTWAIT)`
-    and paces itself with virtualized `usleep`. Under `--window` this hangs
-    erratically (observed: completes at `W=60000` without `--record`, but hangs
-    at `W=1000`, at `W=1000000`, and with `--record` at every width tried). Root
-    cause: a non-blocking poll's *visible* message set — and a clock-paced
-    node's forward progress — depend on how far windows have sealed in **real
-    time**, which is exactly the input windowing is meant to remove. Making it
-    deterministic requires **gating virtual-clock advancement on the sealed
-    horizon** (a guest cannot know it is at virtual time `T` until every event
-    below `T` is sealed), an invasive shim change that is *not* implemented.
-    This is the §4.2 "polling-loop nondeterminism" the design flagged as needing
-    more than the `BlockedNet` state. **So windowed mode today is validated only
-    for workloads that use blocking receives** (`pingpong`, `netsched`), not for
-    poll-drain protocols like Chord/Raft.
-  - **Also not done:** validation across *real* hosts/containers, and the
+  - Validated: the 7-node Chord case study (`examples/chord/chord_node.c`,
+    6 members + observer), which drains its socket with `recvfrom(MSG_DONTWAIT)`
+    and paces itself with virtualized `usleep`, is deterministic under
+    `--window 1000 --net latency=uniform:1000-60000 --record`: across 6 runs the
+    `chord-check` verdict is identical (same exit code, same verdict body) and
+    every node receives a byte-identical message stream. This closes the §4.2
+    "polling-loop nondeterminism" the design flagged: a non-blocking `recvfrom`
+    now advances the connection's frontier and returns only messages sealed
+    below the guest's *virtual* time (`EAGAIN` once the pop-horizon reaches it),
+    so the visible message set is a pure function of virtual time rather than of
+    how far windows have sealed in real time. (`chord-check`'s human-readable
+    node listing still prints in HashMap order, so the *unsorted* render text
+    varies run to run — cosmetic to that tool, not a determinism defect; the
+    verdict and its sorted body are stable.)
+  - **Not done:** validation across *real* hosts/containers, and the
     out-of-model failure-mode aborts F1/F3/F4/F6/F7 of the design's §8 (only F5,
     non-monotone clock → abort, is implemented; a genuinely deadlocked windowed
     cluster currently hangs rather than reporting).
