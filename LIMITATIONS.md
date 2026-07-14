@@ -123,11 +123,25 @@ precondition, and not yet proven on a consensus workload**:
     but does not abort. Reliable (`--net ""`) and exponential latency have
     `L_min = 0`, so windowed request/reply needs `latency=fixed:N` or
     `uniform:LO-HI` with `LO ≥ W`.
-  - **Not yet done:** validation across *real* hosts/containers, validation on
-    a multi-node consensus workload (Chord/Raft as separate node processes),
-    and the out-of-model failure-mode aborts F1/F3/F4/F6/F7 of the design's §8
-    (only F5, non-monotone clock → abort, is implemented; a genuinely
-    deadlocked windowed cluster currently hangs rather than reporting).
+  - **Known not to work: non-blocking-poll workloads (the Chord case study).**
+    `examples/chord/chord_node.c` drains its socket with `recvfrom(MSG_DONTWAIT)`
+    and paces itself with virtualized `usleep`. Under `--window` this hangs
+    erratically (observed: completes at `W=60000` without `--record`, but hangs
+    at `W=1000`, at `W=1000000`, and with `--record` at every width tried). Root
+    cause: a non-blocking poll's *visible* message set — and a clock-paced
+    node's forward progress — depend on how far windows have sealed in **real
+    time**, which is exactly the input windowing is meant to remove. Making it
+    deterministic requires **gating virtual-clock advancement on the sealed
+    horizon** (a guest cannot know it is at virtual time `T` until every event
+    below `T` is sealed), an invasive shim change that is *not* implemented.
+    This is the §4.2 "polling-loop nondeterminism" the design flagged as needing
+    more than the `BlockedNet` state. **So windowed mode today is validated only
+    for workloads that use blocking receives** (`pingpong`, `netsched`), not for
+    poll-drain protocols like Chord/Raft.
+  - **Also not done:** validation across *real* hosts/containers, and the
+    out-of-model failure-mode aborts F1/F3/F4/F6/F7 of the design's §8 (only F5,
+    non-monotone clock → abort, is implemented; a genuinely deadlocked windowed
+    cluster currently hangs rather than reporting).
 
 ## 4. Shrinking: algorithm and worst case
 
