@@ -177,6 +177,85 @@ fn windowed_multihost_pingpong_is_live_and_deterministic() {
     );
 }
 
+/// Same seed, same windowed run ⇒ the *recorded send sequence* (the sealed
+/// linearization, the input every delivery is derived from) is identical.
+/// Whole-log byte identity is NOT claimed: setup ops (hello/bind) and recv
+/// events are written in lock-arrival order, which is real time — see
+/// LIMITATIONS.md. Sends, though, are recorded at seal time in virtual-time
+/// order, so their sequence must never differ.
+#[test]
+fn windowed_recording_send_order_is_identical_across_runs() {
+    let record_run = |path: &std::path::Path| {
+        let mut child = Command::new(weft_bin())
+            .arg("run")
+            .args(["--seed", "42"])
+            .args(["--net", "latency=fixed:1000000"])
+            .args(["--nodes", "2"])
+            .args(["--window", "1000000"])
+            .arg("--record")
+            .arg(path)
+            .arg("--shim")
+            .arg(shim_path())
+            .arg("--")
+            .arg(built().join("pingpong"))
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("failed to spawn weft");
+        let deadline = Instant::now() + Duration::from_secs(30);
+        loop {
+            if let Some(st) = child.try_wait().expect("wait failed") {
+                assert!(st.success(), "recorded windowed run failed");
+                break;
+            }
+            assert!(Instant::now() < deadline, "recorded windowed run timed out");
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    };
+    // The volatile fields (`op` counter, integrity `chain`) depend on how many
+    // arrival-ordered entries interleave, and broker `conn`/`to_conn` ids are
+    // accept-order aliases (real time) — a node's stable identity is its
+    // address, which every send carries as src/dst. Compare each send's event
+    // body with the alias fields stripped, in order.
+    let strip_key = |s: &str, key: &str| -> String {
+        let mut out = s.to_string();
+        let pat = format!("\"{key}\":");
+        while let Some(i) = out.find(&pat) {
+            let rest = &out[i + pat.len()..];
+            let n = rest.chars().take_while(char::is_ascii_digit).count();
+            let comma = usize::from(rest[n..].starts_with(','));
+            out.replace_range(i..i + pat.len() + n + comma, "");
+        }
+        out
+    };
+    let send_seq = |path: &std::path::Path| -> Vec<String> {
+        let text = std::fs::read_to_string(path).unwrap();
+        text.lines()
+            .filter(|l| l.contains("\"k\":\"send\""))
+            .map(|l| {
+                let start = l.find("\"e\":").expect("entry has no event field");
+                let end = l.rfind(",\"chain\"").expect("entry has no chain field");
+                strip_key(&strip_key(&l[start..end], "to_conn"), "conn")
+            })
+            .collect()
+    };
+    let dir = std::env::temp_dir();
+    let (a, b) = (
+        dir.join(format!("weft-recdet-a-{}.log", std::process::id())),
+        dir.join(format!("weft-recdet-b-{}.log", std::process::id())),
+    );
+    record_run(&a);
+    record_run(&b);
+    let (sa, sb) = (send_seq(&a), send_seq(&b));
+    let _ = std::fs::remove_file(&a);
+    let _ = std::fs::remove_file(&b);
+    assert!(!sa.is_empty(), "recording contains no sends");
+    assert_eq!(
+        sa, sb,
+        "same-seed windowed runs recorded different send sequences"
+    );
+}
+
 /// Two `weft run` processes, one hosting the broker on TCP (`--listen`,
 /// spawning node 0) and one joining it (`--broker`, spawning node 1) — the
 /// exact shape of a two-host run, minus the second machine. Both halves must

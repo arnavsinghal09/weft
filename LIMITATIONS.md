@@ -157,6 +157,17 @@ poll-drain workloads, with a hard precondition**:
     run (exit 3) via the goodbye protocol: a windowed connection that ends
     without the shim's clean `Goodbye` (sent on `close(2)` and via `atexit`,
     both skipped by signal death) is latched as a crash, F1.
+  - **Recording determinism boundary:** in a windowed recording the *send
+    sequence* (the sealed linearization every delivery derives from) is
+    identical across same-seed runs modulo broker connection ids, which are
+    accept-order aliases — a node's stable identity is its address
+    (`net_e2e::windowed_recording_send_order_is_identical_across_runs`).
+    Whole-log **byte identity across runs is NOT guaranteed**: setup ops
+    (hello/bind) and recv events are written in lock-arrival order, which is
+    real time. Wait mechanics are excluded from the log (a blocking poll's
+    empties and a non-blocking poll's shim-internal retries are not recorded;
+    only the final, target-visible EAGAIN is). Every individual recording
+    still replays byte-exactly, forever.
   - **Not done:** F2 (per-host frontier-lag reporting in `--stats`); F7 (a
     bound on ops buffered per window — a send-spamming guest today grows the
     buffer without limit); true per-host ids in the sort key (every host

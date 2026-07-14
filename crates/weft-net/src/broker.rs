@@ -714,11 +714,19 @@ fn recv_windowed(
             out
         }
         RecvResult::Empty => {
-            st.observe(Observed::Recv {
-                conn: id,
-                blocking,
-                result: &result,
-            });
+            // Record an Empty only when the *target* observes it: the final
+            // EAGAIN of a non-blocking recv (pop_horizon has reached the
+            // guest's virtual time, so the answer is settled). A blocking
+            // poll's Empty, or a non-blocking one the shim will retry, is
+            // wait mechanics — its count is real-time-dependent, and recording
+            // it would make same-seed logs differ.
+            if !blocking && horizon >= local_vt {
+                st.observe(Observed::Recv {
+                    conn: id,
+                    blocking,
+                    result: &result,
+                });
+            }
             // Carry the pop-horizon so a non-blocking poller knows when its
             // virtual-time answer is final (pop_horizon >= T).
             FromBroker::Empty { vt: horizon }

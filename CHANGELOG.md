@@ -244,6 +244,16 @@ quickstart. Know its edges before you rely on it:
   remote container mid-run discards (exit 3, "closed without goodbye").
   In-process split e2e: `net_e2e::split_orchestration_over_tcp_is_live_and_deterministic`.
 
+- Windowed recordings no longer log wait mechanics: a blocking recv's empty
+  polls and a non-blocking recv's shim-internal retries (whose counts are
+  real-time-dependent — the source of the same-seed log-size variance seen in
+  the Chord runs) are not recorded; only the final, target-visible EAGAIN is.
+  The recorded send sequence is proven identical across same-seed runs modulo
+  accept-order connection ids
+  (`net_e2e::windowed_recording_send_order_is_identical_across_runs`); the
+  remaining cross-run log difference (arrival-ordered setup/recv interleaving)
+  is documented in LIMITATIONS.md.
+
 - Entropy-free network waiting in the scheduler (`Status::BlockedNet`,
   `Scheduler::net_block`): a managed blocking `recvfrom` now parks *before*
   polling the broker rather than spinning on `yield_now`. While any sibling
