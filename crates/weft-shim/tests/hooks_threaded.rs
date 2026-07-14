@@ -11,28 +11,62 @@
 use std::mem::MaybeUninit;
 use std::sync::Once;
 
-/// Process constructor: seeds `WEFT_SEED`/`WEFT_SCHED` into the environment
-/// before `main` runs — while the process is still single-threaded.
+/// Process constructor: guarantees `WEFT_SEED`/`WEFT_SCHED` are in the
+/// environment before *anything* in this process reads it.
 ///
-/// This is required because the shim links into this test binary as an rlib,
-/// so its `#[no_mangle]` `pthread_create` hook interposes libc for the harness
-/// itself. Cargo's test harness spawns its own threads to run tests in
-/// parallel; those `pthread_create` calls hit the hook, which drives the
-/// shim's lazy `state::init()`. If that fires before any `ensure_seeded()`
-/// runs, `init()` observes no `WEFT_SEED` and caches the shim as *inactive*
-/// permanently — so `clock_gettime` falls through to the real monotonic clock,
-/// whose rapid consecutive reads can be equal and break the strict-increase
-/// assertion. Seeding in an `.init_array` constructor guarantees the seed is
-/// visible before the first thread (and thus the first hook) ever runs.
+/// An `.init_array` constructor is not early enough on every glibc: measured
+/// directly (ordered stderr writes from inside `state::init()` and from this
+/// ctor), some libc-internal bootstrap step — before `.init_array` is
+/// processed at all — already calls our interposed `clock_gettime` (observed
+/// as the very first hook entry of the process, ahead of even
+/// `pthread_create`). That first call drives the shim's lazy `state::init()`;
+/// finding no `WEFT_SEED`, it caches the shim as *inactive* permanently (a
+/// `OnceLock`, single-shot by design — matching production, where the seed is
+/// fixed at `exec()` and never changes mid-run). Every hook then falls
+/// through to the real monotonic clock, whose rapid consecutive reads can be
+/// equal and break the strict-increase assertion below.
+///
+/// A ctor running inside this process is therefore too late in general. The
+/// only point guaranteed to precede *any* code — including libc's own
+/// bootstrap — is before `execve()`. So if the seed isn't visible yet, this
+/// ctor re-execs the binary with it added to the environment; the freshly
+/// exec'd process sees `WEFT_SEED` from its very first instruction, exactly
+/// like a real `weft run` target. This is also why plain
+/// `std::env::args_os()`/`current_exe()` aren't used to rebuild the exec:
+/// Rust's own argv capture is *itself* a same-priority `.init_array` entry
+/// that may not have run yet either, so argv/exe path are read directly from
+/// procfs.
 #[used]
 #[cfg_attr(target_os = "linux", link_section = ".init_array.00000")]
 static SEED_ENV_CTOR: extern "C" fn() = {
     extern "C" fn ctor() {
-        // Runs pre-`main`, single-threaded: no other thread can be inside a
-        // hook yet, so this env mutation is race-free. (`set_var` is safe in
-        // edition 2021.)
-        std::env::set_var(weft_abi::ENV_SEED, "42");
-        std::env::set_var(weft_abi::ENV_SCHED, "0");
+        use std::os::unix::process::CommandExt;
+
+        // std::env::var/set_var read/write the process environ directly (no
+        // Rust-side lazy cache), so — unlike argv — this is safe this early;
+        // verified empirically (see the doc comment above).
+        if std::env::var(weft_abi::ENV_SEED).is_ok() {
+            return; // already seeded: this is the re-exec'd instance.
+        }
+        let exe_path = std::fs::read_link("/proc/self/exe").expect("read /proc/self/exe");
+        let cmdline = std::fs::read("/proc/self/cmdline").expect("read /proc/self/cmdline");
+        // NUL-separated argv, dropping the trailing empty split and arg0
+        // (Command::new below supplies its own).
+        let args: Vec<&std::ffi::OsStr> = cmdline
+            .split(|&b| b == 0)
+            .skip(1)
+            .filter(|a| !a.is_empty())
+            .map(std::os::unix::ffi::OsStrExt::from_bytes)
+            .collect();
+        // SAFETY: single-threaded (pre-.init_array/pre-main); Command::exec
+        // replaces this process image, so nothing here observes a
+        // partially-mutated environment.
+        let err = std::process::Command::new(&exe_path)
+            .args(&args)
+            .env(weft_abi::ENV_SEED, "42")
+            .env(weft_abi::ENV_SCHED, "0")
+            .exec();
+        panic!("re-exec with WEFT_SEED set failed: {err}");
     }
     ctor
 };
@@ -105,7 +139,7 @@ fn hooks_survive_concurrent_hammering() {
                         };
                         // SAFETY: valid req pointer, null rem is allowed.
                         let rc = unsafe {
-                            weft_shim::hooks::time::nanosleep(&req, std::ptr::null_mut())
+                            weft_shim::hooks::time::nanosleep(&raw const req, std::ptr::null_mut())
                         };
                         assert_eq!(rc, 0);
                     }
