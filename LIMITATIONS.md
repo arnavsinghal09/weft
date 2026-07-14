@@ -93,9 +93,9 @@ interleaving (scheduler on). Leak vectors, in decreasing order of likelihood:
   4. `exec` restarts virtual time; a process tree that round-trips state
      through exec sees a discontinuity.
 
-**(c) Multi-process cluster runs (`--net`) are NOT seed-deterministic live.**
-Which process's syscall reaches the broker first is OS-scheduled. Once
-enqueued, every fate and delivery position is deterministic — but the
+**(c) Multi-process cluster runs (plain `--net`) are NOT seed-deterministic
+live.** Which process's syscall reaches the broker first is OS-scheduled.
+Once enqueued, every fate and delivery position is deterministic — but the
 enqueue order itself is not. Consequences, measured in Phase 7:
   - The same seed reached a different verdict across 10 live Chord runs
     (1 violation / 8 clean / 1 discard).
@@ -106,8 +106,28 @@ enqueue order itself is not. Consequences, measured in Phase 7:
   - The escape hatch is (a): record the run you care about; the recording
     replays exactly, forever.
 This is the single most important limitation to understand before using
-Weft on a distributed system. Removing it requires scheduling *across*
-processes (a cross-process token), which is designed but not built.
+Weft on a distributed system **without `--window`**.
+
+**(c′) The windowed multi-host broker (`--net … --window <NS>`) removes the
+enqueue-order nondeterminism** by sealing virtual-time windows and ordering
+each window's ops by a seed-derived key instead of arrival
+(docs/MULTI_HOST_CLOCK_PROTOCOL.md). It is **partially validated, with a hard
+precondition, and not yet proven on a consensus workload**:
+  - Validated: a 2-node request/reply (`pingpong`) is live and byte-identical
+    across 10 runs and seed-sensitive; a 2-sender ordering workload
+    (`netsched`) is identical across 6 runs — both single-host, multi-process,
+    in one container (`net_e2e::windowed_multihost_pingpong_is_live_and_deterministic`).
+  - **Precondition: lookahead (the network's minimum latency `L_min`) must be
+    ≥ the window width.** With `L_min < W` a blocking receiver's reactivation
+    bound stalls its own delivery (the L=0 deadlock); the orchestrator warns
+    but does not abort. Reliable (`--net ""`) and exponential latency have
+    `L_min = 0`, so windowed request/reply needs `latency=fixed:N` or
+    `uniform:LO-HI` with `LO ≥ W`.
+  - **Not yet done:** validation across *real* hosts/containers, validation on
+    a multi-node consensus workload (Chord/Raft as separate node processes),
+    and the out-of-model failure-mode aborts F1/F3/F4/F6/F7 of the design's §8
+    (only F5, non-monotone clock → abort, is implemented; a genuinely
+    deadlocked windowed cluster currently hangs rather than reporting).
 
 ## 4. Shrinking: algorithm and worst case
 
