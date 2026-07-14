@@ -51,13 +51,18 @@ impl Client {
         assert!(matches!(self.call(&m), FromBroker::Ack { .. }));
     }
     fn recv_blocking(&mut self, addr: VAddr) -> Vec<u8> {
-        match self.call(&ToBroker::Recv {
-            addr,
-            blocking: true,
-            local_vt: 0,
-        }) {
-            FromBroker::Deliver { payload, .. } => payload,
-            other => panic!("expected delivery, got {other:?}"),
+        // The windowed broker never holds a recv; it answers at once (Deliver
+        // or Empty). A real blocking receiver polls until a datagram arrives.
+        loop {
+            match self.call(&ToBroker::Recv {
+                addr,
+                blocking: true,
+                local_vt: 0,
+            }) {
+                FromBroker::Deliver { payload, .. } => return payload,
+                FromBroker::Empty { .. } => std::thread::sleep(std::time::Duration::from_millis(2)),
+                FromBroker::Ack { .. } => panic!("unexpected Ack for a Recv"),
+            }
         }
     }
 }

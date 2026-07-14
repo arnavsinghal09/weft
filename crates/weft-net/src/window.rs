@@ -246,6 +246,21 @@ impl WindowSequencer {
         Ok(conn_seq)
     }
 
+    /// Advance a running connection's frontier to `at_vt` (op-carried frontier
+    /// from a non-blocking recv poll: the guest is at virtual time `at_vt` and
+    /// will emit nothing below it). Marks the connection running, not parked —
+    /// a polling guest contributes its own clock to the sealing quorum, which
+    /// is what lets the horizon advance to meet its poll. No-op if closed.
+    pub fn touch_frontier(&mut self, conn: ConnId, at_vt: u64) {
+        if let Some(c) = self.conns.get_mut(&conn) {
+            if c.live {
+                c.frontier = c.frontier.max(at_vt);
+                c.blocked = false;
+                c.wait_addr = None;
+            }
+        }
+    }
+
     /// Declare a frontier without emitting an op (the explicit `Frontier`
     /// message, §4.2): "I will emit nothing below `f`."
     ///

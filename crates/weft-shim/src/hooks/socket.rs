@@ -446,6 +446,7 @@ pub unsafe extern "C" fn sendto(
 /// # Safety
 ///
 /// Arguments per the libc `recvfrom(2)` contract.
+#[allow(clippy::too_many_lines)] // windowed and single-host recv paths inline
 #[no_mangle]
 pub unsafe extern "C" fn recvfrom(
     fd: c_int,
@@ -464,9 +465,6 @@ pub unsafe extern "C" fn recvfrom(
             let nonblock = flags & libc::MSG_DONTWAIT != 0;
             let managed = s.sched_enabled && current_tid().is_some();
             let windowed = window_ns() > 0;
-            // Declared once per blocking recv: the broker is told (via `Park`)
-            // that this connection is waiting, so the windows feeding it seal.
-            let mut park_declared = false;
             let deliver = |src: VAddr, payload: &[u8]| {
                 let n = payload.len().min(len);
                 // SAFETY: caller guarantees buf valid for len writes; n <= len.
@@ -479,38 +477,72 @@ pub unsafe extern "C" fn recvfrom(
                     n as ssize_t
                 }
             };
+            // The whole receive happens at one virtual instant `recv_vt = T`;
+            // in windowed mode the answer must be a pure function of `T`, so
+            // sample it once and reuse it across poll iterations.
+            let recv_vt = if windowed { s.clock.now_mono_ns() } else { 0 };
             loop {
                 let addr = sock.lock().unwrap().local;
                 let Some(addr) = addr else {
                     set_errno(libc::EINVAL); // recv on an unbound socket
                     return -1;
                 };
-                // A managed *blocking* recv defers delivery to a scheduler
-                // idle point: park as `BlockedNet` before polling so a
-                // datagram is never consumed while a sibling is runnable.
-                // That keeps the local thread interleaving independent of
-                // cross-process arrival timing, and the park is entropy-free
-                // (see `Scheduler::net_block`) — it returns only once the
-                // process is otherwise idle and this thread was promoted to
-                // poll. Managed threads must not block *inside* the broker
-                // (the token would be lost to real-time races), so the broker
-                // request itself stays non-blocking for them.
+
+                if windowed {
+                    // The broker never holds a windowed recv: it answers at
+                    // once (Deliver, or Empty carrying the pop-horizon) and the
+                    // shim polls. `blocking` carries the guest's true intent so
+                    // the broker picks the reactivation (blocking) or
+                    // gated-on-T (non-blocking) model
+                    // (docs/MULTI_HOST_CLOCK_PROTOCOL.md §4.2).
+                    let req = ToBroker::Recv {
+                        addr,
+                        blocking: !nonblock,
+                        local_vt: recv_vt,
+                    };
+                    let reply = {
+                        let mut guard = sock.lock().unwrap();
+                        broker_call(&mut guard, &req)
+                    };
+                    match reply {
+                        Some(FromBroker::Deliver {
+                            src, payload, vt, ..
+                        }) => {
+                            // Merge the datagram's seed-derived delivery time.
+                            s.clock.advance_mono_to(vt);
+                            shim_trace!(s, "recvfrom({addr}) <- {src}, {}B", payload.len());
+                            return deliver(src, &payload);
+                        }
+                        Some(FromBroker::Empty { vt: pop_horizon }) => {
+                            // For a non-blocking poll, once the pop-horizon has
+                            // reached T the "no datagram by T" answer is final.
+                            if nonblock && pop_horizon >= recv_vt {
+                                set_errno(libc::EAGAIN);
+                                return -1;
+                            }
+                            // Otherwise wait for the horizon (or a message):
+                            // entropy-free park if managed, else real-time
+                            // backoff, then re-poll at the same virtual T.
+                            if managed {
+                                s.sched.net_block(addr_key(addr));
+                            } else {
+                                real_sleep_us(POLL_BACKOFF_US);
+                            }
+                            continue;
+                        }
+                        _ => {
+                            set_errno(libc::EIO);
+                            return -1;
+                        }
+                    }
+                }
+
+                // --- single-host (non-windowed) path ---
+                // A managed *blocking* recv defers delivery to a scheduler idle
+                // point: park as `BlockedNet` before polling so a datagram is
+                // never consumed while a sibling is runnable (the OQ-5 fix).
                 if managed && !nonblock {
                     s.sched.net_block(addr_key(addr));
-                    // Once this whole process is idle (net_block returned, so
-                    // no sibling is runnable) tell the windowed broker we are
-                    // parked, so the cluster can seal the window that feeds us.
-                    // A managed receiver polls non-blocking and so cannot
-                    // advance the horizon it is waiting on by itself.
-                    if windowed && !park_declared {
-                        let req = ToBroker::Park {
-                            addr,
-                            local_vt: s.clock.now_mono_ns(),
-                        };
-                        let mut guard = sock.lock().unwrap();
-                        let _ = broker_call(&mut guard, &req);
-                        park_declared = true;
-                    }
                 }
                 let blocking = !nonblock && !managed;
                 let req = ToBroker::Recv {
@@ -522,19 +554,11 @@ pub unsafe extern "C" fn recvfrom(
                     let mut guard = sock.lock().unwrap();
                     broker_call(&mut guard, &req)
                 };
-                // Single-host: the reply `vt` (broker logical high-water,
-                // linearization-order-dependent) is deliberately NOT merged —
-                // that would break same-seed determinism. Windowed multi-host:
-                // the reply `vt` is instead the datagram's own seed-derived
-                // delivery time, which IS arrival-independent, so it is merged
-                // (docs/MULTI_HOST_CLOCK_PROTOCOL.md §3).
+                // The reply `vt` (broker logical high-water, arrival-ordered)
+                // is deliberately NOT merged here — that would break same-seed
+                // determinism.
                 match reply {
-                    Some(FromBroker::Deliver {
-                        src, payload, vt, ..
-                    }) => {
-                        if window_ns() > 0 {
-                            s.clock.advance_mono_to(vt);
-                        }
+                    Some(FromBroker::Deliver { src, payload, .. }) => {
                         shim_trace!(s, "recvfrom({addr}) <- {src}, {}B", payload.len());
                         return deliver(src, &payload);
                     }
@@ -544,14 +568,13 @@ pub unsafe extern "C" fn recvfrom(
                             return -1;
                         }
                         if managed {
-                            // Nothing available yet: pace the idle re-poll in
-                            // real time (no virtual clock, no entropy) and
-                            // loop to re-park until a datagram arrives.
+                            // Nothing yet: pace the idle re-poll in real time
+                            // (no virtual clock, no entropy) and re-park.
                             real_sleep_us(POLL_BACKOFF_US);
                             continue;
                         }
-                        // Unmanaged and blocking=true returned Empty: broker
-                        // is shutting down.
+                        // Unmanaged blocking recv returned Empty: broker is
+                        // shutting down.
                         set_errno(libc::ECONNRESET);
                         return -1;
                     }

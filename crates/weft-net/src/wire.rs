@@ -69,16 +69,6 @@ pub enum ToBroker {
     /// boundary without any network op, so idle guests cannot stall sealing.
     /// Ignored by the non-windowed broker.
     Frontier { local_vt: u64 },
-    /// "I am parking on a blocking receive at `local_vt`" (windowed multi-host,
-    /// docs/MULTI_HOST_CLOCK_PROTOCOL.md §4.2, release-on-block). The broker
-    /// removes this connection from the sealing quorum so the windows that will
-    /// feed it can seal without it — a managed receiver polls the broker
-    /// non-blocking and so cannot itself advance the horizon it is waiting on.
-    /// The connection rejoins the quorum when a datagram is delivered to it.
-    /// `addr` is the address it is receiving on, so the broker can bound its
-    /// reactivation by pending sends aimed there. Ignored by the non-windowed
-    /// broker.
-    Park { addr: VAddr, local_vt: u64 },
 }
 
 /// Messages the broker sends back to a node's shim.
@@ -186,11 +176,6 @@ impl ToBroker {
                 b.push(5);
                 put_u64(&mut b, *local_vt);
             }
-            Self::Park { addr, local_vt } => {
-                b.push(6);
-                put_addr(&mut b, *addr);
-                put_u64(&mut b, *local_vt);
-            }
         }
         b
     }
@@ -213,10 +198,6 @@ impl ToBroker {
                 local_vt: c.u64()?,
             },
             5 => Self::Frontier {
-                local_vt: c.u64()?,
-            },
-            6 => Self::Park {
-                addr: c.addr()?,
                 local_vt: c.u64()?,
             },
             _ => return None,

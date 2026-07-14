@@ -418,17 +418,6 @@ fn handle_conn(
                 };
                 let _ = write_from_broker(&mut writer, &FromBroker::Ack { vt });
             }
-            ToBroker::Park { addr, local_vt } => {
-                // A managed receiver parking on recv (windowed only): leave the
-                // sealing quorum so the windows that will feed it can seal.
-                // Ignored otherwise.
-                let vt = if windowed {
-                    park(shared, global_time, id, addr, local_vt)
-                } else {
-                    shared.0.lock().unwrap().core.vt()
-                };
-                let _ = write_from_broker(&mut writer, &FromBroker::Ack { vt });
-            }
         }
     }
 
@@ -542,35 +531,23 @@ fn declare_frontier(
     st.core.vt()
 }
 
-/// Windowed park: a managed receiver announces it is blocking on recv, so it
-/// leaves the sealing quorum (`block`) and no longer stalls the windows that
-/// will feed it. A managed receiver polls the broker non-blocking (so a
-/// sibling thread can keep running), which means it cannot itself advance the
-/// horizon it waits on — this explicit signal is what lets the horizon move.
-fn park(
-    shared: &Arc<(Mutex<State>, Condvar)>,
-    global_time: &Arc<AtomicU64>,
-    conn: u64,
-    addr: VAddr,
-    local_vt: u64,
-) -> u64 {
-    let (lock, cvar) = &**shared;
-    let mut st = lock.lock().unwrap();
-    st.track_skew(local_vt);
-    if let Some(seq) = st.seq.as_mut() {
-        seq.block(conn, local_vt, addr);
-    }
-    st.seal_and_feed(global_time);
-    cvar.notify_all();
-    st.core.vt()
-}
-
-/// Windowed receive: deliver only datagrams whose delivery time has fallen
-/// below the sealed horizon (arrival-gated, design doc §4.3), so visibility
-/// never depends on how early a send was admitted in real time. While a
-/// blocking receiver waits it leaves the sealing quorum (`block`), so idle
-/// receivers never stall the windows that would eventually feed them; when a
-/// datagram is popped it rejoins at that delivery time (`wake`).
+/// Windowed receive — single-shot, never holds. The shim polls this (parking
+/// as `BlockedNet` between polls) so the wait costs no scheduler entropy and a
+/// sibling thread can keep running (docs/MULTI_HOST_CLOCK_PROTOCOL.md §4.2).
+/// Two models, keyed on the guest's true intent:
+///
+/// - **Blocking recv** (`blocking`): the guest waits for a *message*. It leaves
+///   the sealing quorum (`block`, contributing its reactivation bound) and the
+///   broker returns the earliest sealed datagram, or `Empty` (the shim re-polls
+///   until one arrives).
+/// - **Non-blocking recv** (`MSG_DONTWAIT`): the guest polls at virtual time
+///   `local_vt = T`. It advances its frontier to `T` (`touch_frontier`, so the
+///   horizon can rise to meet it) and the broker returns the earliest datagram
+///   with `deliv_vt < T` — the messages that have virtually arrived by `T`. If
+///   none, it returns `Empty { vt = pop_horizon }`; the shim reads `EAGAIN`
+///   once `pop_horizon >= T` (the virtual-time answer is now final) and re-polls
+///   otherwise. This makes the visible set a pure function of `T`, not of how
+///   far windows have sealed in real time.
 fn recv_windowed(
     shared: &Arc<(Mutex<State>, Condvar)>,
     global_time: &Arc<AtomicU64>,
@@ -579,64 +556,64 @@ fn recv_windowed(
     blocking: bool,
     local_vt: u64,
 ) -> FromBroker {
-    let (lock, cvar) = &**shared;
+    let (lock, _cvar) = &**shared;
     let mut st = lock.lock().unwrap();
     st.track_skew(local_vt);
-    let mut parked = false;
-    loop {
-        let horizon = st.seq.as_ref().map_or(u64::MAX, WindowSequencer::pop_horizon);
-        let result = st.core.recv_before(id, horizon);
-        match &result {
-            RecvResult::Delivered {
-                src,
-                dst,
-                deliv_ns,
-                payload,
-                ..
-            } => {
-                let (src, dst, deliv_ns) = (*src, *dst, *deliv_ns);
-                // Windowed deliveries carry the datagram's own seed-derived
-                // delivery time (`deliv = send_vt + seeded latency`), not the
-                // core high-water mark: it is arrival-independent, so the shim
-                // can merge it into the receiver's clock without leaking
-                // linearization order (docs/MULTI_HOST_CLOCK_PROTOCOL.md §3).
-                let out = FromBroker::Deliver {
-                    src,
-                    dst,
-                    payload: payload.clone(),
-                    vt: deliv_ns,
-                };
-                if let Some(seq) = st.seq.as_mut() {
-                    seq.wake(id, deliv_ns);
-                }
-                st.observe(Observed::Recv {
-                    conn: id,
-                    blocking,
-                    result: &result,
-                });
-                return out;
-            }
-            RecvResult::Empty => {
-                if !blocking || !st.core.is_connected(id) {
-                    st.observe(Observed::Recv {
-                        conn: id,
-                        blocking,
-                        result: &result,
-                    });
-                    return FromBroker::Empty { vt: st.core.vt() };
-                }
-                if !parked {
-                    if let Some(seq) = st.seq.as_mut() {
-                        seq.block(id, local_vt, addr);
-                    }
-                    parked = true;
-                    // Leaving the quorum can unblock a window that will feed us.
-                    st.seal_and_feed(global_time);
-                    cvar.notify_all();
-                }
-            }
+    // Declare the connection's frontier so sealing can advance, then seal.
+    if let Some(seq) = st.seq.as_mut() {
+        if blocking {
+            seq.block(id, local_vt, addr);
+        } else {
+            seq.touch_frontier(id, local_vt);
         }
-        st = cvar.wait(st).unwrap();
+    }
+    st.seal_and_feed(global_time);
+    let horizon = st.seq.as_ref().map_or(u64::MAX, WindowSequencer::pop_horizon);
+    // Blocking: any sealed datagram. Non-blocking: only those with deliv < T.
+    let bound = if blocking {
+        horizon
+    } else {
+        horizon.min(local_vt)
+    };
+    let result = st.core.recv_before(id, bound);
+    match &result {
+        RecvResult::Delivered {
+            src,
+            dst,
+            deliv_ns,
+            payload,
+            ..
+        } => {
+            let out = FromBroker::Deliver {
+                src: *src,
+                dst: *dst,
+                payload: payload.clone(),
+                // Windowed deliveries carry their own seed-derived delivery
+                // time so the shim can merge it into the receiver's clock
+                // (docs/MULTI_HOST_CLOCK_PROTOCOL.md §3).
+                vt: *deliv_ns,
+            };
+            let deliv_ns = *deliv_ns;
+            if let Some(seq) = st.seq.as_mut() {
+                seq.wake(id, deliv_ns);
+            }
+            st.observe(Observed::Recv {
+                conn: id,
+                blocking,
+                result: &result,
+            });
+            out
+        }
+        RecvResult::Empty => {
+            st.observe(Observed::Recv {
+                conn: id,
+                blocking,
+                result: &result,
+            });
+            // Carry the pop-horizon so a non-blocking poller knows when its
+            // virtual-time answer is final (pop_horizon >= T).
+            FromBroker::Empty { vt: horizon }
+        }
     }
 }
 
