@@ -47,6 +47,13 @@ pub const ENV_NODE_ID: &str = "WEFT_NODE_ID";
 /// `weft_net::config`); consumed by the broker, not the shim.
 pub const ENV_NET: &str = "WEFT_NET";
 
+/// Environment variable holding the multi-host clock-protocol window width in
+/// nanoseconds (decimal `u64`). When set and non-zero the broker runs the
+/// windowed sequencer and the shim merges each delivery's seed-derived
+/// delivery time into its local clock; unset or `0` selects the single-host
+/// arrival-routed broker with no clock merge (docs/MULTI_HOST_CLOCK_PROTOCOL.md).
+pub const ENV_WINDOW_NS: &str = "WEFT_WINDOW_NS";
+
 /// Environment variable (`"1"`) making `fsync`/`fdatasync` return success
 /// without persisting — the fsync-lies fault. See docs/fault-model.md.
 pub const ENV_FSYNC_LIES: &str = "WEFT_FSYNC_LIES";

@@ -559,11 +559,16 @@ fn recv_windowed(
                 ..
             } => {
                 let (src, dst, deliv_ns) = (*src, *dst, *deliv_ns);
+                // Windowed deliveries carry the datagram's own seed-derived
+                // delivery time (`deliv = send_vt + seeded latency`), not the
+                // core high-water mark: it is arrival-independent, so the shim
+                // can merge it into the receiver's clock without leaking
+                // linearization order (docs/MULTI_HOST_CLOCK_PROTOCOL.md §3).
                 let out = FromBroker::Deliver {
                     src,
                     dst,
                     payload: payload.clone(),
-                    vt: st.core.vt(),
+                    vt: deliv_ns,
                 };
                 if let Some(seq) = st.seq.as_mut() {
                     seq.wake(id, deliv_ns);

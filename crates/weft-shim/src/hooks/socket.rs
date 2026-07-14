@@ -170,6 +170,40 @@ fn broker_path() -> Option<&'static str> {
     .as_deref()
 }
 
+/// The multi-host window width in ns (`WEFT_WINDOW_NS`), `0` when unset. When
+/// non-zero the shim is talking to a windowed broker and merges each
+/// delivery's seed-derived delivery time into its local clock.
+fn window_ns() -> u64 {
+    static W: OnceLock<u64> = OnceLock::new();
+    *W.get_or_init(|| {
+        let _g = Reentrancy::enter();
+        std::env::var(weft_abi::ENV_WINDOW_NS)
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0)
+    })
+}
+
+/// A `WEFT_BROKER` value names a TCP endpoint when it looks like `host:port`
+/// rather than a filesystem path — the multi-host transport. Unix-domain
+/// paths (absolute or relative) keep the single-host transport.
+fn is_tcp_broker(path: &str) -> bool {
+    !path.starts_with('/') && !path.starts_with('.') && path.contains(':')
+}
+
+/// Open the broker connection and hand its raw fd to the caller (who owns it,
+/// closing via the interposed `close(2)`). TCP for `host:port`, Unix domain
+/// otherwise; both then speak the identical [`weft_net::wire`] protocol.
+fn connect_broker(path: &str) -> io::Result<c_int> {
+    if is_tcp_broker(path) {
+        let stream = std::net::TcpStream::connect(path)?;
+        let _ = stream.set_nodelay(true);
+        Ok(stream.into_raw_fd())
+    } else {
+        Ok(UnixStream::connect(path)?.into_raw_fd())
+    }
+}
+
 /// The IPv4 address of node `n`, by convention `127.0.0.(n+1)`.
 fn node_ip(n: u32) -> u32 {
     0x7f00_0001 + n
@@ -280,10 +314,9 @@ pub unsafe extern "C" fn socket(domain: c_int, ty: c_int, protocol: c_int) -> c_
         if domain == libc::AF_INET && (ty & 0xf) == libc::SOCK_DGRAM {
             if let Some(path) = broker_path() {
                 let _g = Reentrancy::enter();
-                if let Ok(stream) = UnixStream::connect(path) {
+                if let Ok(fd) = connect_broker(path) {
                     // Hand fd ownership to the target: it will close it via
                     // the interposed close(2) like any other descriptor.
-                    let fd = stream.into_raw_fd();
                     let mut io = RawSock(fd);
                     let hello = ToBroker::Hello { node_id: node };
                     let ok = write_to_broker(&mut io, &hello).is_ok()
@@ -471,11 +504,19 @@ pub unsafe extern "C" fn recvfrom(
                     let mut guard = sock.lock().unwrap();
                     broker_call(&mut guard, &req)
                 };
-                // Reply `vt` is intentionally ignored here, as in sendto:
-                // merging broker logical time (linearization-order-dependent)
-                // into the guest clock would break same-seed determinism.
+                // Single-host: the reply `vt` (broker logical high-water,
+                // linearization-order-dependent) is deliberately NOT merged —
+                // that would break same-seed determinism. Windowed multi-host:
+                // the reply `vt` is instead the datagram's own seed-derived
+                // delivery time, which IS arrival-independent, so it is merged
+                // (docs/MULTI_HOST_CLOCK_PROTOCOL.md §3).
                 match reply {
-                    Some(FromBroker::Deliver { src, payload, .. }) => {
+                    Some(FromBroker::Deliver {
+                        src, payload, vt, ..
+                    }) => {
+                        if window_ns() > 0 {
+                            s.clock.advance_mono_to(vt);
+                        }
                         shim_trace!(s, "recvfrom({addr}) <- {src}, {}B", payload.len());
                         return deliver(src, &payload);
                     }
