@@ -110,6 +110,16 @@ pub struct WindowSequencer {
     pending: Vec<SeqSend>,
     /// The sealed horizon: every window below this is sealed and assigned.
     horizon: u64,
+    /// Join barrier: no window seals until this many *distinct node ids* have
+    /// registered (0 = no barrier). Without it, sealing races node startup: a
+    /// fast node that sends and blocks before a slow peer's `Hello` arrives is
+    /// momentarily the whole quorum, the horizon seals to `INFINITY`, its send
+    /// is fed to a not-yet-bound address, and every op the late joiner emits
+    /// is rejected as a late op — a real-time-dependent wedge.
+    expected_nodes: u32,
+    /// Distinct node ids ever registered (survives close, so a node that
+    /// joins and exits still counts toward the barrier).
+    nodes_seen: std::collections::HashSet<u32>,
 }
 
 impl WindowSequencer {
@@ -127,7 +137,21 @@ impl WindowSequencer {
             conns: HashMap::new(),
             pending: Vec::new(),
             horizon: 0,
+            expected_nodes: 0,
+            nodes_seen: std::collections::HashSet::new(),
         }
+    }
+
+    /// Arm the join barrier: hold every window open until `n` distinct node
+    /// ids have registered. The orchestrator knows the cluster size
+    /// (`--nodes`), so startup order — which is OS process scheduling, exactly
+    /// the input windowing removes — can never influence what seals.
+    pub fn expect_nodes(&mut self, n: u32) {
+        self.expected_nodes = n;
+    }
+
+    fn barrier_met(&self) -> bool {
+        self.nodes_seen.len() >= self.expected_nodes as usize
     }
 
     /// The delivery-visibility horizon: a queued delivery is poppable once its
@@ -167,6 +191,7 @@ impl WindowSequencer {
     /// a caller bug and panics in debug via the `HashMap` overwrite being
     /// silent; the broker registers each connection exactly once.
     pub fn register(&mut self, conn: ConnId, host_id: u32, node_id: u32) {
+        self.nodes_seen.insert(node_id);
         self.conns.insert(
             conn,
             ConnState {
@@ -331,6 +356,9 @@ impl WindowSequencer {
     /// pure function of the admitted ops and declared frontiers — never of the
     /// order in which they were admitted.
     pub fn seal(&mut self) -> Vec<SeqSend> {
+        if !self.barrier_met() {
+            return Vec::new();
+        }
         let min_frontier = self
             .conns
             .values()
@@ -367,7 +395,24 @@ impl WindowSequencer {
     /// detection (design doc §8, F6).
     #[must_use]
     pub fn is_quiescent(&self) -> bool {
-        self.pending.is_empty()
+        self.pending.is_empty() && self.conns.values().all(|c| self.conn_bound(c) == INFINITY)
+    }
+
+    /// Whether the cluster is in a *terminal deadlock* rather than a clean
+    /// shutdown: nothing buffered, every connection bounded at `INFINITY`, yet
+    /// at least one connection is still live (blocked on recv with nothing that
+    /// can wake it). Distinct from [`Self::is_quiescent`], which is also true
+    /// once every guest has simply exited. The deterministic F6 deadlock report
+    /// (design doc §8) — a pure function of the frontiers and buffered ops, so
+    /// the same seed deadlocks at the same virtual-time point every run.
+    #[must_use]
+    pub fn deadlocked(&self) -> bool {
+        // Waiting on the join barrier is startup, not deadlock (a node that
+        // never joins is an out-of-model event for the --watchdog guard).
+        self.barrier_met()
+            && !self.conns.is_empty()
+            && self.pending.is_empty()
+            && self.conns.values().any(|c| c.live)
             && self.conns.values().all(|c| self.conn_bound(c) == INFINITY)
     }
 }
@@ -547,7 +592,11 @@ mod tests {
         s.block(1, 0, addr(1, 2));
         // reactivation bound = 30 + lookahead(100) = 130 -> horizon floor to 100.
         let out = s.seal();
-        assert_eq!(out.len(), 1, "the send's window (local_vt 30 < 100) must seal");
+        assert_eq!(
+            out.len(),
+            1,
+            "the send's window (local_vt 30 < 100) must seal"
+        );
         assert_eq!(s.horizon(), 100);
         // The delivery (deliv >= 30) is poppable: horizon + lookahead = 200.
         assert_eq!(s.pop_horizon(), 200);
@@ -565,7 +614,11 @@ mod tests {
         s.block(1, 40, addr(9, 9)); // nobody sends to addr(9, 9)
         s.declare_frontier(0, 10_000).unwrap();
         s.seal();
-        assert_eq!(s.horizon(), 10_000, "unwakeable receiver wrongly stalled sealing");
+        assert_eq!(
+            s.horizon(),
+            10_000,
+            "unwakeable receiver wrongly stalled sealing"
+        );
 
         let mut s2 = WindowSequencer::new(width, 0);
         s2.register(0, 0, 0);
@@ -575,6 +628,27 @@ mod tests {
         s2.declare_frontier(0, 10_000).unwrap();
         s2.seal();
         assert_eq!(s2.horizon(), 200, "woken receiver must bound the horizon");
+    }
+
+    #[test]
+    fn join_barrier_holds_sealing_until_every_node_arrives() {
+        let mut s = WindowSequencer::new(100, 100);
+        s.expect_nodes(2);
+        // Node 0 races ahead: registers, sends, and blocks on a reply before
+        // node 1 has even connected. Without the barrier the horizon would
+        // seal to INFINITY here and feed the send to a not-yet-bound address.
+        s.register(0, 0, 0);
+        s.admit_send(0, 5, addr(0, 1), addr(1, 2), vec![1]).unwrap();
+        s.block(0, 5, addr(0, 1));
+        assert!(s.seal().is_empty(), "sealed before the cluster assembled");
+        assert_eq!(s.horizon(), 0);
+        assert!(!s.deadlocked(), "startup wait is not a deadlock");
+        // Node 1 arrives; the same state now seals.
+        s.register(1, 0, 1);
+        s.close(1);
+        s.close(0);
+        assert_eq!(s.seal().len(), 1);
+        assert_eq!(s.horizon(), INFINITY);
     }
 
     #[test]

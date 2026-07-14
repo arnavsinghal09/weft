@@ -209,6 +209,24 @@ quickstart. Know its edges before you rely on it:
   `--window 1000 --net latency=uniform:1000-60000 --record` the `chord-check`
   verdict and every node's received byte stream are identical across 6 runs.
 
+- Windowed failure modes (docs/MULTI_HOST_CLOCK_PROTOCOL.md §8) and a join
+  barrier. Sealing now waits until every `--nodes` id has said Hello — without
+  the barrier, a fast node that sent and blocked before a slow peer's Hello
+  arrived was momentarily the whole quorum, sealed the horizon to infinity,
+  and wedged the run (a real-time startup race, seen as a load-dependent
+  pingpong hang). The orchestrator polls the broker instead of blocking on
+  children and aborts-and-discards (exit 3) on: a node killed by a signal
+  (F1, a real crash mid-window), `--watchdog <SECS>` real-time no-progress
+  (F3, only ever discards), a latched protocol violation (F4/F5 — a rejected
+  op previously only logged to stderr and the run could still report a clean
+  pass), and deterministic terminal quiescence (F6 — a deadlocked windowed
+  cluster previously hung forever). Each has a test
+  (`window::join_barrier_holds_sealing_until_every_node_arrives`,
+  `broker_windowed::a_rejected_op_latches_a_violation`,
+  `net_e2e::windowed_deadlock_is_detected_and_discarded`,
+  `net_e2e::windowed_crash_by_signal_is_discarded`). Not done: F2 (frontier-lag
+  stats) and F7 (per-window buffer bound).
+
 - Entropy-free network waiting in the scheduler (`Status::BlockedNet`,
   `Scheduler::net_block`): a managed blocking `recvfrom` now parks *before*
   polling the broker rather than spinning on `yield_now`. While any sibling

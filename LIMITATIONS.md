@@ -137,10 +137,19 @@ poll-drain workloads, with a hard precondition**:
     node listing still prints in HashMap order, so the *unsorted* render text
     varies run to run — cosmetic to that tool, not a determinism defect; the
     verdict and its sorted body are stable.)
-  - **Not done:** validation across *real* hosts/containers, and the
-    out-of-model failure-mode aborts F1/F3/F4/F6/F7 of the design's §8 (only F5,
-    non-monotone clock → abort, is implemented; a genuinely deadlocked windowed
-    cluster currently hangs rather than reporting).
+  - Failure modes (design §8), implemented and tested: **F1** a node killed by
+    a signal mid-window discards the run (exit 3); **F3** `--watchdog <SECS>`
+    aborts-and-discards on real-time no-progress (its firing is inherently
+    nondeterministic, so it only ever discards); **F4/F5** a rejected sequencer
+    op (non-monotone clock, late op, reconnect splice) is latched as a protocol
+    violation and the run is discarded even if every node then exits 0; **F6**
+    terminal quiescence (every connected guest blocked, nothing in flight) is
+    detected deterministically and discards instead of hanging. Sealing also
+    waits for a **join barrier** (all `--nodes` ids said Hello) so node startup
+    order — OS scheduling — cannot race the horizon past a late joiner.
+  - **Not done:** validation across *real* hosts/containers; F2 (per-host
+    frontier-lag reporting in `--stats`); F7 (a bound on ops buffered per
+    window — a send-spamming guest today grows the buffer without limit).
 
 ## 4. Shrinking: algorithm and worst case
 

@@ -89,7 +89,8 @@ fn start(seed: u64, recorded: &Arc<Mutex<Recording>>) -> PathBuf {
             sink.lock().unwrap().push((send_vt, payload.to_vec()));
         }
     });
-    let broker = Arc::new(Broker::bind_with_window(&path, model, Some(observer), WINDOW_NS).unwrap());
+    let broker =
+        Arc::new(Broker::bind_with_window(&path, model, Some(observer), WINDOW_NS).unwrap());
     std::thread::spawn(move || broker.run());
     path
 }
@@ -167,5 +168,31 @@ fn recording_is_independent_of_arrival_order() {
     assert_eq!(
         deliv_ab, deliv_ba,
         "opposite arrival orders produced different delivery"
+    );
+}
+
+/// A non-monotone `local_vt` (F5: a shim clock bug or a reconnect splice) must
+/// be latched as a protocol violation so the orchestrator discards the run —
+/// continuing past a rejected op silently corrupts the linearization.
+#[test]
+fn a_rejected_op_latches_a_violation() {
+    let path = std::env::temp_dir().join(format!("weft-win-viol-{}.sock", std::process::id()));
+    let _ = std::fs::remove_file(&path);
+    let model = config::parse(1, NET_SPEC).unwrap();
+    let broker = Arc::new(Broker::bind_with_window(&path, model, None, WINDOW_NS).unwrap());
+    {
+        let broker = Arc::clone(&broker);
+        std::thread::spawn(move || broker.run());
+    }
+    let mut c = Client::connect(&path, 0);
+    let (a, b) = (addr(0, 100), addr(1, 200));
+    c.bind(a);
+    c.send_at(a, b, b"x", 500);
+    assert!(broker.violation().is_none());
+    c.send_at(a, b, b"y", 5); // clock went backwards
+    let v = broker.violation().expect("non-monotone send must latch");
+    assert!(
+        v.contains("LateOp") || v.contains("NonMonotone"),
+        "unexpected violation: {v}"
     );
 }

@@ -89,6 +89,11 @@ struct State {
     /// `Some` in windowed multi-host mode: ops are buffered and ordered by the
     /// sequencer, not routed on arrival (docs/MULTI_HOST_CLOCK_PROTOCOL.md).
     seq: Option<WindowSequencer>,
+    /// First windowed protocol violation seen (a rejected [`SeqError`] op:
+    /// non-monotone clock, late op, reconnect splice). Latched so the
+    /// orchestrator can abort the run as invalid — continuing past a rejected
+    /// op silently corrupts the linearization (design doc §8, F4/F5).
+    violation: Option<String>,
 }
 
 impl State {
@@ -99,6 +104,7 @@ impl State {
             observer,
             max_skew_ns: 0,
             seq: (window_ns > 0).then(|| WindowSequencer::new(window_ns, lookahead)),
+            violation: None,
         }
     }
 
@@ -179,7 +185,12 @@ pub struct Broker {
 }
 
 impl Broker {
-    fn from_listener(listener: Listener, model: FaultModel, observer: Option<Observer>, window_ns: u64) -> Self {
+    fn from_listener(
+        listener: Listener,
+        model: FaultModel,
+        observer: Option<Observer>,
+        window_ns: u64,
+    ) -> Self {
         Self {
             listener,
             shared: Arc::new((
@@ -323,6 +334,47 @@ impl Broker {
     #[must_use]
     pub fn max_skew_ns(&self) -> u64 {
         self.shared.0.lock().unwrap().max_skew_ns
+    }
+
+    /// Arm the windowed join barrier: no window seals until `n` distinct node
+    /// ids have said `Hello` (see [`WindowSequencer::expect_nodes`]). No-op on
+    /// the non-windowed broker.
+    ///
+    /// # Panics
+    ///
+    /// Same non-condition as [`Self::run`].
+    pub fn expect_nodes(&self, n: u32) {
+        if let Some(seq) = self.shared.0.lock().unwrap().seq.as_mut() {
+            seq.expect_nodes(n);
+        }
+    }
+
+    /// The first windowed protocol violation seen (a rejected op: non-monotone
+    /// clock F5, late op, reconnect splice F4), or `None`. A violated run's
+    /// linearization is corrupt; the orchestrator aborts it as invalid.
+    ///
+    /// # Panics
+    ///
+    /// Same non-condition as [`Self::run`].
+    #[must_use]
+    pub fn violation(&self) -> Option<String> {
+        self.shared.0.lock().unwrap().violation.clone()
+    }
+
+    /// Whether the windowed cluster has reached a terminal deadlock: every live
+    /// guest is blocked with no message that can wake it, nothing is buffered
+    /// or in flight, yet at least one guest is still connected (a hang, not a
+    /// clean shutdown). A pure function of sequencer + core state — the
+    /// deterministic F6 quiescence report (docs/MULTI_HOST_CLOCK_PROTOCOL.md
+    /// §8). Always `false` for the non-windowed broker.
+    ///
+    /// # Panics
+    ///
+    /// Same non-condition as [`Self::run`].
+    #[must_use]
+    pub fn deadlock_check(&self) -> bool {
+        let st = self.shared.0.lock().unwrap();
+        st.seq.as_ref().is_some_and(WindowSequencer::deadlocked) && !st.core.any_queued()
     }
 }
 
@@ -500,6 +552,8 @@ fn admit_send(
         }
         Some(Err(e)) => {
             eprintln!("weft-net: sequencer rejected send on conn {conn}: {e:?}");
+            st.violation
+                .get_or_insert_with(|| format!("rejected send on conn {conn}: {e:?}"));
         }
         None => {}
     }
@@ -517,7 +571,10 @@ fn declare_frontier(
     let (lock, cvar) = &**shared;
     let mut st = lock.lock().unwrap();
     st.track_skew(local_vt);
-    let res = st.seq.as_mut().map(|seq| seq.declare_frontier(conn, local_vt));
+    let res = st
+        .seq
+        .as_mut()
+        .map(|seq| seq.declare_frontier(conn, local_vt));
     match res {
         Some(Ok(())) => {
             st.seal_and_feed(global_time);
@@ -525,6 +582,8 @@ fn declare_frontier(
         }
         Some(Err(e)) => {
             eprintln!("weft-net: sequencer rejected frontier on conn {conn}: {e:?}");
+            st.violation
+                .get_or_insert_with(|| format!("rejected frontier on conn {conn}: {e:?}"));
         }
         None => {}
     }
@@ -568,7 +627,10 @@ fn recv_windowed(
         }
     }
     st.seal_and_feed(global_time);
-    let horizon = st.seq.as_ref().map_or(u64::MAX, WindowSequencer::pop_horizon);
+    let horizon = st
+        .seq
+        .as_ref()
+        .map_or(u64::MAX, WindowSequencer::pop_horizon);
     // Blocking: any sealed datagram. Non-blocking: only those with deliv < T.
     let bound = if blocking {
         horizon

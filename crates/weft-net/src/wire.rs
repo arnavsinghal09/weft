@@ -197,9 +197,7 @@ impl ToBroker {
                 blocking: c.take(1)?[0] != 0,
                 local_vt: c.u64()?,
             },
-            5 => Self::Frontier {
-                local_vt: c.u64()?,
-            },
+            5 => Self::Frontier { local_vt: c.u64()? },
             _ => return None,
         })
     }

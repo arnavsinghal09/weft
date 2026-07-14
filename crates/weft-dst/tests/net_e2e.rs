@@ -9,7 +9,13 @@ use std::process::{Command, Stdio};
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
-const PROGRAMS: &[&str] = &["pingpong", "kvreplica", "netsched"];
+const PROGRAMS: &[&str] = &[
+    "pingpong",
+    "kvreplica",
+    "netsched",
+    "deadlock_recv",
+    "crash_now",
+];
 
 /// The seeded network spec used by the kvreplica proof (documented in
 /// docs/network-model.md; the trigger/avoid seeds below belong to it).
@@ -164,7 +170,38 @@ fn windowed_multihost_pingpong_is_live_and_deterministic() {
         );
     }
     let (other, _) = weft_net_run_window(7, net, 2, 1_000_000, "pingpong");
-    assert_ne!(sorted(&first), sorted(&other), "different seed should differ");
+    assert_ne!(
+        sorted(&first),
+        sorted(&other),
+        "different seed should differ"
+    );
+}
+
+/// A windowed cluster that cannot make progress — here a lone node blocked in
+/// `recvfrom` with no peer — must be detected as a terminal deadlock and
+/// discarded (exit 3, the deterministic F6 quiescence report,
+/// docs/MULTI_HOST_CLOCK_PROTOCOL.md §8) rather than hang. Without the check
+/// the run never terminates and the harness's 30s guard would fire the test.
+#[test]
+fn windowed_deadlock_is_detected_and_discarded() {
+    let (_out, code) = weft_net_run_window(0, "latency=fixed:100", 1, 100, "deadlock_recv");
+    assert_eq!(
+        code, 3,
+        "windowed deadlock must discard (exit 3), got {code}"
+    );
+}
+
+/// A node killed by a signal mid-run is a real crash (F1): the windowed run is
+/// invalid (the ordering survivors see depends on when, in real time, the
+/// crash landed) and must be discarded, not reported as pass/fail.
+#[test]
+fn windowed_crash_by_signal_is_discarded() {
+    let (_out, code) = weft_net_run_window(0, "latency=fixed:100", 1, 100, "crash_now");
+    assert_eq!(code, 3, "signal crash must discard (exit 3), got {code}");
+    // Non-windowed keeps the historical signal-exit mapping (128), so crashes
+    // stay visible-but-ordinary where arrival order was never deterministic.
+    let (_out, code) = weft_net_run(0, "", 1, "crash_now");
+    assert_eq!(code, 128, "non-windowed signal exit must stay 128");
 }
 
 /// The Phase 3 bug proof: under seeded latency variance the replica's missing

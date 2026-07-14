@@ -210,6 +210,14 @@ impl Core {
         self.queues.get(&conn).is_some_and(|q| !q.is_empty())
     }
 
+    /// Whether any connection still has an undelivered datagram queued. Used by
+    /// the windowed deadlock check: a blocked receiver with a queued delivery
+    /// is not deadlocked, it just has not polled for it yet.
+    #[must_use]
+    pub fn any_queued(&self) -> bool {
+        self.queues.values().any(|q| !q.is_empty())
+    }
+
     /// Whether `conn` is registered (i.e. has connected and not disconnected).
     #[must_use]
     pub fn is_connected(&self, conn: u64) -> bool {

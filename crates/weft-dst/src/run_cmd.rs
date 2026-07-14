@@ -37,6 +37,9 @@ Options:
   --record <LOG>      With --net: record every broker operation to <LOG> for
                       later `weft replay`; a .gz path is gzip-compressed
                       (see docs/recording-format.md)
+  --watchdog <SECS>   With --net: abort and discard the run if the broker
+                      makes no progress for SECS seconds (a deadlock or a
+                      guest wedged in uninstrumented compute); 0 = off
   --trace, --verbose  Log every intercepted call to stderr
   --stats             Print scheduler statistics at exit
   --shim <PATH>       Path to libweft_shim.so (default: WEFT_SHIM env,
@@ -59,6 +62,11 @@ pub struct RunOpts {
     pub window: u64,
     /// Record broker operations to this weft-log file (requires `--net`).
     pub record: Option<PathBuf>,
+    /// Real-time no-progress watchdog in seconds (0 = off). Requires `--net`.
+    /// If the broker makes no progress for this long the run is aborted and
+    /// marked invalid (discard) — the design's F3/F6 handling. Only ever
+    /// discards; a completed run is never altered.
+    pub watchdog: u64,
     pub shim: Option<PathBuf>,
     pub program: Vec<OsString>,
 }
@@ -80,6 +88,7 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
     let mut net = None;
     let mut nodes = 1u32;
     let mut window = 0u64;
+    let mut watchdog = 0u64;
     let mut record = None;
     let mut shim = None;
     let mut program = Vec::new();
@@ -146,6 +155,17 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
                     return Err("--window width must be non-zero (ns)".to_string());
                 }
             }
+            Some("--watchdog") => {
+                let v = args
+                    .next()
+                    .ok_or_else(|| "--watchdog requires a value in seconds".to_string())?;
+                let v = v
+                    .to_str()
+                    .ok_or_else(|| "--watchdog value is not UTF-8".to_string())?;
+                watchdog = v.parse().map_err(|_| {
+                    format!("--watchdog {v:?} is not a non-negative integer (secs)")
+                })?;
+            }
             Some("--record") => {
                 let v = args
                     .next()
@@ -183,7 +203,12 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
         return Err("--record requires --net (recording captures broker operations)".to_string());
     }
     if window > 0 && net.is_none() {
-        return Err("--window requires --net (the windowed sequencer orders broker ops)".to_string());
+        return Err(
+            "--window requires --net (the windowed sequencer orders broker ops)".to_string(),
+        );
+    }
+    if watchdog > 0 && net.is_none() {
+        return Err("--watchdog requires --net (progress is measured at the broker)".to_string());
     }
     Ok(RunOpts {
         seed,
@@ -195,6 +220,7 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
         nodes,
         window,
         record,
+        watchdog,
         shim,
         program,
     })
@@ -279,6 +305,12 @@ pub fn exec(opts: &RunOpts) -> String {
     )
 }
 
+/// Exit code for a run aborted as invalid (crash, deadlock, protocol
+/// violation, or watchdog), matching the campaign-discard convention
+/// (`chord-check` exit 3).
+#[cfg(target_os = "linux")]
+const DISCARD: i32 = 3;
+
 /// Run the target under network simulation: host the seeded broker in this
 /// process and spawn `opts.nodes` instances of the program, each with its own
 /// node id. Returns the combined exit code (0 iff every node exited 0).
@@ -288,6 +320,7 @@ pub fn exec(opts: &RunOpts) -> String {
 /// Returns a message if the shim cannot be found, the net spec is invalid, the
 /// broker cannot bind, or a child fails to spawn.
 #[cfg(target_os = "linux")]
+#[allow(clippy::too_many_lines)] // one linear orchestration flow; splitting obscures it
 pub fn run_cluster(opts: &RunOpts) -> Result<i32, String> {
     let shim_path = find_shim(opts.shim.clone())?;
     let spec = opts.net.as_deref().unwrap_or("");
@@ -340,6 +373,11 @@ pub fn run_cluster(opts: &RunOpts) -> Result<i32, String> {
     // engages the windowed sequencer (docs/MULTI_HOST_CLOCK_PROTOCOL.md).
     let broker = weft_net::Broker::bind_with_window(&sock_path, model, observer, opts.window)
         .map_err(|e| format!("broker bind: {e}"))?;
+    // Windowed sealing must wait for the whole cluster to say Hello, or node
+    // startup order (OS scheduling) races the horizon past a late joiner.
+    if opts.window > 0 {
+        broker.expect_nodes(opts.nodes);
+    }
     let broker = std::sync::Arc::new(broker);
     {
         let broker = std::sync::Arc::clone(&broker);
@@ -361,21 +399,99 @@ pub fn run_cluster(opts: &RunOpts) -> Result<i32, String> {
         children.push((node, child));
     }
 
+    // A blocking join per child hangs forever if the windowed cluster
+    // deadlocks, so poll instead and act on two signals: the deterministic F6
+    // quiescence check (fires the instant no connected guest can make progress)
+    // and, when `--watchdog` is set, a real-time no-progress guard for a guest
+    // wedged in uninstrumented compute (F3). Both only ever abort-and-discard;
+    // a run that completes is untouched, and the poll only reads broker atomics
+    // so it never perturbs the recorded bytes.
+    let watchdog = (opts.watchdog > 0).then(|| std::time::Duration::from_secs(opts.watchdog));
     let mut code = 0;
-    for (node, mut child) in children {
-        match child.wait() {
-            Ok(status) => {
-                let c = status.code().unwrap_or(128);
-                if c != 0 {
-                    eprintln!("weft: node {node} exited with {c}");
-                    code = c;
+    let mut running = children;
+    let mut last_sent = broker.stats().0;
+    let mut last_progress = std::time::Instant::now();
+    loop {
+        let mut i = 0;
+        while i < running.len() {
+            match running[i].1.try_wait() {
+                Ok(Some(status)) => {
+                    let (node, _) = running.remove(i);
+                    match status.code() {
+                        Some(0) => {}
+                        Some(c) => {
+                            eprintln!("weft: node {node} exited with {c}");
+                            code = c;
+                        }
+                        // Killed by a signal. In a windowed run that is a real
+                        // crash mid-window (F1): the ordering the survivors see
+                        // depends on when (real time) the crash landed, so the
+                        // run is invalid. Non-windowed keeps the historical 128.
+                        None if opts.window > 0 => {
+                            eprintln!("weft: node {node} crashed (signal); run discarded");
+                            code = DISCARD;
+                        }
+                        None => {
+                            eprintln!("weft: node {node} exited with 128");
+                            code = 128;
+                        }
+                    }
+                }
+                Ok(None) => i += 1,
+                Err(e) => {
+                    let (node, _) = running.remove(i);
+                    eprintln!("weft: node {node} wait failed: {e}");
+                    code = 1;
                 }
             }
-            Err(e) => {
-                eprintln!("weft: node {node} wait failed: {e}");
-                code = 1;
+        }
+        if running.is_empty() {
+            break;
+        }
+        // F4/F5: a rejected op means the linearization is already corrupt.
+        if broker.violation().is_some() {
+            break;
+        }
+        // F6: deterministic terminal-deadlock report (windowed mode only).
+        if broker.deadlock_check() {
+            eprintln!(
+                "[weft] deadlock: every connected node is blocked with nothing \
+                 in flight (windowed quiescence); run discarded"
+            );
+            code = DISCARD;
+            break;
+        }
+        // F3: real-time no-progress watchdog. Its firing is nondeterministic
+        // (a merely slow guest can trip it), so it only ever discards.
+        if let Some(timeout) = watchdog {
+            let sent = broker.stats().0;
+            if sent == last_sent {
+                if last_progress.elapsed() >= timeout {
+                    eprintln!(
+                        "[weft] watchdog: no broker progress for {}s (deadlock or \
+                         wedged guest); run discarded",
+                        opts.watchdog
+                    );
+                    code = DISCARD;
+                    break;
+                }
+            } else {
+                last_sent = sent;
+                last_progress = std::time::Instant::now();
             }
         }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    // F4/F5: checked after the loop too — a violated run whose nodes then
+    // exit 0 must still be discarded, not reported as a clean pass.
+    if let Some(v) = broker.violation() {
+        eprintln!("[weft] protocol violation: {v}; run discarded");
+        code = DISCARD;
+    }
+    // Reap any child still alive after an abort so it does not linger.
+    for (_, mut child) in running {
+        let _ = child.kill();
+        let _ = child.wait();
     }
     if opts.stats {
         let (sent, dropped) = broker.stats();
