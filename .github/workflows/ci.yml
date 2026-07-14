@@ -68,8 +68,23 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
-      - name: Generate coverage
-        run: cargo llvm-cov --workspace --lcov --output-path lcov.info
+      - name: Build and test under instrumentation
+        # The e2e/net_e2e suites shell out to the `weft` binary, which loads
+        # libweft_shim.so next to itself at runtime -- a file-path convention
+        # invisible to Cargo's dependency graph. `cargo llvm-cov` alone only
+        # builds what's needed to run tests (not necessarily every crate's
+        # cdylib target), so libweft_shim.so never lands next to the
+        # coverage-instrumented `weft` binary and those suites fail with
+        # "cannot find libweft_shim.so". An explicit `cargo build --all-targets`
+        # under the same instrumented environment (`show-env`) fixes that;
+        # `report`/`clean` are the only cargo-llvm-cov subcommands safe to run
+        # inside a show-env session, so building/testing use plain cargo.
+        run: |
+          source <(cargo llvm-cov show-env --sh)
+          cargo llvm-cov clean --workspace
+          cargo build --workspace --all-targets
+          cargo test --workspace
+          cargo llvm-cov report --lcov --output-path lcov.info
       - name: Upload to Codecov
         uses: codecov/codecov-action@v4
         with:
