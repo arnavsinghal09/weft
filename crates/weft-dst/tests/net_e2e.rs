@@ -177,6 +177,82 @@ fn windowed_multihost_pingpong_is_live_and_deterministic() {
     );
 }
 
+/// Two `weft run` processes, one hosting the broker on TCP (`--listen`,
+/// spawning node 0) and one joining it (`--broker`, spawning node 1) — the
+/// exact shape of a two-host run, minus the second machine. Both halves must
+/// complete, and the exchange must be deterministic across repeats and
+/// windowed-sealed exactly like the single-orchestrator run.
+#[test]
+#[allow(clippy::zombie_processes)] // reaped via try_wait on success; on an assert failure the runs finish and exit on their own
+fn split_orchestration_over_tcp_is_live_and_deterministic() {
+    let addr = "127.0.0.1:17641";
+    let spawn_half = |spawn: &str, host: bool| {
+        let mut cmd = Command::new(weft_bin());
+        cmd.arg("run")
+            .args(["--seed", "42"])
+            .args(["--net", "latency=fixed:1000000"])
+            .args(["--nodes", "2"])
+            .args(["--window", "1000000"])
+            .args(["--spawn", spawn]);
+        if host {
+            cmd.args(["--listen", addr]);
+        } else {
+            cmd.args(["--broker", addr]);
+        }
+        cmd.arg("--shim")
+            .arg(shim_path())
+            .arg("--")
+            .arg(built().join("pingpong"))
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("failed to spawn weft")
+    };
+    let run_split = || {
+        let mut a = spawn_half("0-0", true);
+        // The joining side's shim connects immediately; wait for the listener.
+        let start = Instant::now();
+        while std::net::TcpStream::connect(addr).is_err() {
+            assert!(
+                start.elapsed() < Duration::from_secs(10),
+                "--listen broker never came up"
+            );
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let mut b = spawn_half("1-1", false);
+        let deadline = Instant::now() + Duration::from_secs(30);
+        let (mut sa, mut sb) = (None, None);
+        while sa.is_none() || sb.is_none() {
+            assert!(Instant::now() < deadline, "split run timed out");
+            if sa.is_none() {
+                sa = a.try_wait().expect("wait failed");
+            }
+            if sb.is_none() {
+                sb = b.try_wait().expect("wait failed");
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let mut out = String::new();
+        std::io::Read::read_to_string(a.stdout.as_mut().unwrap(), &mut out).unwrap();
+        let mut out_b = String::new();
+        std::io::Read::read_to_string(b.stdout.as_mut().unwrap(), &mut out_b).unwrap();
+        out.push_str(&out_b);
+        assert_eq!(sa.unwrap().code(), Some(0), "hosting side failed: {out}");
+        assert_eq!(sb.unwrap().code(), Some(0), "joining side failed: {out}");
+        let mut lines: Vec<&str> = out.lines().collect();
+        lines.sort_unstable();
+        lines.join("\n")
+    };
+    let first = run_split();
+    assert!(
+        first.contains("PING:") && first.contains("PONG:"),
+        "bad output: {first}"
+    );
+    for _ in 0..2 {
+        assert_eq!(first, run_split(), "split TCP run not deterministic");
+    }
+}
+
 /// A windowed cluster that cannot make progress — here a lone node blocked in
 /// `recvfrom` with no peer — must be detected as a terminal deadlock and
 /// discarded (exit 3, the deterministic F6 quiescence report,

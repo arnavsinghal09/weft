@@ -40,6 +40,14 @@ Options:
   --watchdog <SECS>   With --net: abort and discard the run if the broker
                       makes no progress for SECS seconds (a deadlock or a
                       guest wedged in uninstrumented compute); 0 = off
+  --listen <IP:PORT>  With --net: host the broker on TCP instead of a Unix
+                      socket so nodes on other hosts can join (--broker there)
+  --broker <IP:PORT>  Join a broker another `weft run --listen` is hosting,
+                      instead of hosting one (the remote half of a multi-host
+                      run; --record stays on the hosting side)
+  --spawn <LO-HI>     Node ids to launch locally, inclusive (default 0-N-1);
+                      with --listen/--broker each host launches its share and
+                      no window seals until all --nodes ids have joined
   --trace, --verbose  Log every intercepted call to stderr
   --stats             Print scheduler statistics at exit
   --shim <PATH>       Path to libweft_shim.so (default: WEFT_SHIM env,
@@ -67,6 +75,16 @@ pub struct RunOpts {
     /// marked invalid (discard) — the design's F3/F6 handling. Only ever
     /// discards; a completed run is never altered.
     pub watchdog: u64,
+    /// Host the broker on this TCP address (`IP:PORT`) instead of a Unix
+    /// socket, so nodes on other hosts can join (`--broker` on their side).
+    pub listen: Option<String>,
+    /// Join the broker at this TCP address instead of hosting one — the
+    /// remote half of a multi-host run. Excludes `--listen`/`--record`.
+    pub broker: Option<String>,
+    /// Node ids to spawn locally, inclusive (multi-host: each host spawns its
+    /// share; the join barrier still waits for all `--nodes`). Defaults to
+    /// `0..nodes-1`.
+    pub spawn: Option<(u32, u32)>,
     pub shim: Option<PathBuf>,
     pub program: Vec<OsString>,
 }
@@ -90,6 +108,9 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
     let mut window = 0u64;
     let mut watchdog = 0u64;
     let mut record = None;
+    let mut listen = None;
+    let mut broker = None;
+    let mut spawn = None;
     let mut shim = None;
     let mut program = Vec::new();
 
@@ -172,6 +193,40 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
                     .ok_or_else(|| "--record requires a log path".to_string())?;
                 record = Some(PathBuf::from(v));
             }
+            Some("--listen") => {
+                let v = args
+                    .next()
+                    .ok_or_else(|| "--listen requires an IP:PORT address".to_string())?;
+                let v = v
+                    .to_str()
+                    .ok_or_else(|| "--listen address is not UTF-8".to_string())?;
+                listen = Some(v.to_string());
+            }
+            Some("--broker") => {
+                let v = args
+                    .next()
+                    .ok_or_else(|| "--broker requires an IP:PORT address".to_string())?;
+                let v = v
+                    .to_str()
+                    .ok_or_else(|| "--broker address is not UTF-8".to_string())?;
+                broker = Some(v.to_string());
+            }
+            Some("--spawn") => {
+                let v = args
+                    .next()
+                    .ok_or_else(|| "--spawn requires a LO-HI node id range".to_string())?;
+                let v = v
+                    .to_str()
+                    .ok_or_else(|| "--spawn range is not UTF-8".to_string())?;
+                let (lo, hi) = v
+                    .split_once('-')
+                    .and_then(|(a, b)| Some((a.parse().ok()?, b.parse().ok()?)))
+                    .ok_or_else(|| format!("--spawn {v:?} is not LO-HI (e.g. 0-2)"))?;
+                if lo > hi {
+                    return Err(format!("--spawn {v:?}: LO must be <= HI"));
+                }
+                spawn = Some((lo, hi));
+            }
             Some("--shim") => {
                 let v = args
                     .next()
@@ -210,6 +265,33 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
     if watchdog > 0 && net.is_none() {
         return Err("--watchdog requires --net (progress is measured at the broker)".to_string());
     }
+    if (listen.is_some() || broker.is_some() || spawn.is_some()) && net.is_none() {
+        return Err("--listen/--broker/--spawn require --net".to_string());
+    }
+    if listen.is_some() && broker.is_some() {
+        return Err(
+            "--listen and --broker are mutually exclusive (host or join, not both)".to_string(),
+        );
+    }
+    if broker.is_some() && record.is_some() {
+        return Err(
+            "--record needs the hosting side (--listen); the joining side has no broker"
+                .to_string(),
+        );
+    }
+    if broker.is_some() && watchdog > 0 {
+        return Err(
+            "--watchdog needs the hosting side (--listen); progress is measured at the broker"
+                .to_string(),
+        );
+    }
+    if let Some((_, hi)) = spawn {
+        if hi >= nodes {
+            return Err(format!(
+                "--spawn id {hi} is out of range for --nodes {nodes}"
+            ));
+        }
+    }
     Ok(RunOpts {
         seed,
         trace,
@@ -221,6 +303,9 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
         window,
         record,
         watchdog,
+        listen,
+        broker,
+        spawn,
         shim,
         program,
     })
@@ -369,25 +454,44 @@ pub fn run_cluster(opts: &RunOpts) -> Result<i32, String> {
         None => None,
     };
     let observer = recorder.as_ref().map(weft_replay::Recorder::observer);
+    // Three broker arrangements: join a remote one (--broker: no broker here,
+    // the hosting side owns recording and failure detection), host on TCP
+    // (--listen: other hosts can join), or host on the Unix socket (default).
     // window 0 selects the single-host arrival-routed broker; a non-zero width
     // engages the windowed sequencer (docs/MULTI_HOST_CLOCK_PROTOCOL.md).
-    let broker = weft_net::Broker::bind_with_window(&sock_path, model, observer, opts.window)
-        .map_err(|e| format!("broker bind: {e}"))?;
-    // Windowed sealing must wait for the whole cluster to say Hello, or node
-    // startup order (OS scheduling) races the horizon past a late joiner.
-    if opts.window > 0 {
-        broker.expect_nodes(opts.nodes);
-    }
-    let broker = std::sync::Arc::new(broker);
-    {
-        let broker = std::sync::Arc::clone(&broker);
-        std::thread::spawn(move || broker.run());
-    }
+    let (broker, endpoint) = if let Some(addr) = &opts.broker {
+        (None, std::ffi::OsString::from(addr.as_str()))
+    } else {
+        let broker = if let Some(addr) = &opts.listen {
+            weft_net::Broker::bind_tcp_window(addr.as_str(), model, observer, opts.window)
+                .map_err(|e| format!("broker bind {addr}: {e}"))?
+        } else {
+            weft_net::Broker::bind_with_window(&sock_path, model, observer, opts.window)
+                .map_err(|e| format!("broker bind: {e}"))?
+        };
+        // Windowed sealing must wait for the whole cluster to say Hello, or
+        // node startup order (OS scheduling) races the horizon past a late
+        // joiner — on multi-host runs, past a whole slow host.
+        if opts.window > 0 {
+            broker.expect_nodes(opts.nodes);
+        }
+        let broker = std::sync::Arc::new(broker);
+        {
+            let broker = std::sync::Arc::clone(&broker);
+            std::thread::spawn(move || broker.run());
+        }
+        let endpoint = opts
+            .listen
+            .as_ref()
+            .map_or_else(|| sock_path.clone().into_os_string(), Into::into);
+        (Some(broker), endpoint)
+    };
 
+    let (spawn_lo, spawn_hi) = opts.spawn.unwrap_or((0, opts.nodes - 1));
     let mut children = Vec::new();
-    for node in 0..opts.nodes {
+    for node in spawn_lo..=spawn_hi {
         let mut cmd = target_command(opts, &shim_path);
-        cmd.env(weft_abi::ENV_BROKER, &sock_path)
+        cmd.env(weft_abi::ENV_BROKER, &endpoint)
             .env(weft_abi::ENV_NODE_ID, node.to_string())
             .env(weft_abi::ENV_NET, spec);
         if opts.window > 0 {
@@ -409,7 +513,7 @@ pub fn run_cluster(opts: &RunOpts) -> Result<i32, String> {
     let watchdog = (opts.watchdog > 0).then(|| std::time::Duration::from_secs(opts.watchdog));
     let mut code = 0;
     let mut running = children;
-    let mut last_sent = broker.stats().0;
+    let mut last_sent = broker.as_ref().map_or(0, |b| b.stats().0);
     let mut last_progress = std::time::Instant::now();
     loop {
         let mut i = 0;
@@ -446,45 +550,59 @@ pub fn run_cluster(opts: &RunOpts) -> Result<i32, String> {
             }
         }
         if running.is_empty() {
-            break;
+            // A --listen host serves remote nodes too: hold the broker open
+            // until every expected node has joined and finished (or a failure
+            // check below fires), not just until the local children exit.
+            let remote_pending = opts.listen.is_some()
+                && code != DISCARD
+                && broker
+                    .as_ref()
+                    .is_some_and(|b| !b.cluster_drained(opts.nodes));
+            if !remote_pending {
+                break;
+            }
         }
-        // F4/F5: a rejected op means the linearization is already corrupt.
-        if broker.violation().is_some() {
-            break;
-        }
-        // F6: deterministic terminal-deadlock report (windowed mode only).
-        if broker.deadlock_check() {
-            eprintln!(
-                "[weft] deadlock: every connected node is blocked with nothing \
-                 in flight (windowed quiescence); run discarded"
-            );
-            code = DISCARD;
-            break;
-        }
-        // F3: real-time no-progress watchdog. Its firing is nondeterministic
-        // (a merely slow guest can trip it), so it only ever discards.
-        if let Some(timeout) = watchdog {
-            let sent = broker.stats().0;
-            if sent == last_sent {
-                if last_progress.elapsed() >= timeout {
-                    eprintln!(
-                        "[weft] watchdog: no broker progress for {}s (deadlock or \
-                         wedged guest); run discarded",
-                        opts.watchdog
-                    );
-                    code = DISCARD;
-                    break;
+        // Failure detection lives with the broker; the joining side of a
+        // multi-host run (--broker) defers to the hosting side's exit code.
+        if let Some(b) = &broker {
+            // F4/F5: a rejected op means the linearization is already corrupt.
+            if b.violation().is_some() {
+                break;
+            }
+            // F6: deterministic terminal-deadlock report (windowed mode only).
+            if b.deadlock_check() {
+                eprintln!(
+                    "[weft] deadlock: every connected node is blocked with nothing \
+                     in flight (windowed quiescence); run discarded"
+                );
+                code = DISCARD;
+                break;
+            }
+            // F3: real-time no-progress watchdog. Its firing is nondeterministic
+            // (a merely slow guest can trip it), so it only ever discards.
+            if let Some(timeout) = watchdog {
+                let sent = b.stats().0;
+                if sent == last_sent {
+                    if last_progress.elapsed() >= timeout {
+                        eprintln!(
+                            "[weft] watchdog: no broker progress for {}s (deadlock or \
+                             wedged guest); run discarded",
+                            opts.watchdog
+                        );
+                        code = DISCARD;
+                        break;
+                    }
+                } else {
+                    last_sent = sent;
+                    last_progress = std::time::Instant::now();
                 }
-            } else {
-                last_sent = sent;
-                last_progress = std::time::Instant::now();
             }
         }
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
     // F4/F5: checked after the loop too — a violated run whose nodes then
     // exit 0 must still be discarded, not reported as a clean pass.
-    if let Some(v) = broker.violation() {
+    if let Some(v) = broker.as_ref().and_then(|b| b.violation()) {
         eprintln!("[weft] protocol violation: {v}; run discarded");
         code = DISCARD;
     }
@@ -494,8 +612,17 @@ pub fn run_cluster(opts: &RunOpts) -> Result<i32, String> {
         let _ = child.wait();
     }
     if opts.stats {
-        let (sent, dropped) = broker.stats();
-        eprintln!("[weft] network: {sent} datagram(s) sent, {dropped} dropped");
+        if let Some(b) = &broker {
+            let (sent, dropped) = b.stats();
+            eprintln!("[weft] network: {sent} datagram(s) sent, {dropped} dropped");
+            if opts.window > 0 {
+                // F2 observability: the largest |node local clock - broker
+                // logical clock| seen across all ops that carried a clock.
+                eprintln!("[weft] max clock skew: {} ns", b.max_skew_ns());
+            }
+        } else {
+            eprintln!("[weft] network stats live on the hosting side (--listen)");
+        }
     }
     if let Some(rec) = recorder {
         match rec.finish() {

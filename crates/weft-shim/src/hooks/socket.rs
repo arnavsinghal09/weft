@@ -140,15 +140,58 @@ fn lookup(fd: c_int) -> Option<SockRef> {
     t.iter().find(|(f, _)| *f == fd).map(|(_, s)| Arc::clone(s))
 }
 
-/// Forget `fd` if it was a simulated socket (called from the `close` hook).
+/// Send the clean-exit farewell on one broker connection (windowed runs only:
+/// there, a stream that ends without it is treated as a crash — F1). Fire and
+/// forget; the broker never replies.
+fn send_goodbye(sock: &SockRef) {
+    if window_ns() == 0 {
+        return;
+    }
+    let _g = Reentrancy::enter();
+    if let Ok(s) = sock.lock() {
+        let mut io = RawSock(s.fd);
+        let _ = write_to_broker(&mut io, &ToBroker::Goodbye);
+    }
+}
+
+/// Farewell every still-open broker connection. Registered with `atexit` so a
+/// guest that exits without closing its sockets (most C programs) still says
+/// goodbye; a signal death skips `atexit`, which is exactly the point.
+extern "C" fn goodbye_at_exit() {
+    let socks: Vec<SockRef> = match table().lock() {
+        Ok(mut t) => t.drain(..).map(|(_, s)| s).collect(),
+        Err(_) => return,
+    };
+    for s in &socks {
+        send_goodbye(s);
+    }
+}
+
+/// Register [`goodbye_at_exit`] once, at first simulated-socket creation.
+fn register_goodbye() {
+    static ONCE: OnceLock<()> = OnceLock::new();
+    ONCE.get_or_init(|| {
+        // SAFETY: registering a C-ABI handler with no arguments; libc keeps
+        // the pointer only for the process lifetime.
+        unsafe { libc::atexit(goodbye_at_exit) };
+    });
+}
+
+/// Forget `fd` if it was a simulated socket (called from the `close` hook),
+/// telling the broker the close is deliberate, not a crash.
 pub fn untrack(fd: c_int) {
     if is_reentrant() {
         return;
     }
-    let _g = Reentrancy::enter();
-    if let Ok(mut t) = table().lock() {
-        t.retain(|(f, _)| *f != fd);
-    }
+    let sock = {
+        let _g = Reentrancy::enter();
+        let Ok(mut t) = table().lock() else { return };
+        let Some(pos) = t.iter().position(|(f, _)| *f == fd) else {
+            return;
+        };
+        t.remove(pos).1
+    };
+    send_goodbye(&sock);
 }
 
 /// This process's node id (`WEFT_NODE_ID`), if network simulation is on.
@@ -322,6 +365,7 @@ pub unsafe extern "C" fn socket(domain: c_int, ty: c_int, protocol: c_int) -> c_
                     let ok = write_to_broker(&mut io, &hello).is_ok()
                         && matches!(read_from_broker(&mut io), Ok(FromBroker::Ack { .. }));
                     if ok {
+                        register_goodbye();
                         table()
                             .lock()
                             .unwrap()

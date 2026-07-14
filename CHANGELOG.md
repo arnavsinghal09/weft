@@ -227,6 +227,23 @@ quickstart. Know its edges before you rely on it:
   `net_e2e::windowed_crash_by_signal_is_discarded`). Not done: F2 (frontier-lag
   stats) and F7 (per-window buffer bound).
 
+- Multi-host runs from the CLI: `--listen IP:PORT` hosts the broker on TCP
+  (owning `--record`/`--watchdog`/failure detection, and holding the broker
+  open until every `--nodes` id has joined and finished — not just until its
+  local children exit), `--broker IP:PORT` joins it from another host, and
+  `--spawn LO-HI` picks which node ids each host launches. A clean guest exit
+  now sends a `Goodbye` wire message (on interposed `close(2)` and via an
+  `atexit` sweep); a windowed node connection that ends without one is a real
+  crash (F1) and discards the run — before this, killing a remote container
+  mid-run let the surviving half complete and report a clean pass, because a
+  TCP close and a clean finish look identical and datagrams to dead addresses
+  drop silently. `--stats` on a windowed broker also prints the max observed
+  clock skew. Validated across two Docker containers with the 7-node Chord
+  case study: 8/8 split runs produce the byte-identical `chord-check` verdict
+  as the single-host windowed run, measured max skew ~2.0 ms, and killing the
+  remote container mid-run discards (exit 3, "closed without goodbye").
+  In-process split e2e: `net_e2e::split_orchestration_over_tcp_is_live_and_deterministic`.
+
 - Entropy-free network waiting in the scheduler (`Status::BlockedNet`,
   `Scheduler::net_block`): a managed blocking `recvfrom` now parks *before*
   polling the broker rather than spinning on `yield_now`. While any sibling

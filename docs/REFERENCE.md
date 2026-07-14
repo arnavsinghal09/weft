@@ -36,14 +36,23 @@ weft run --seed <N> [OPTIONS] -- <program> [args...]
 | `--net <SPEC>` | simulate the network through a seeded broker; see §3. An empty SPEC (`--net ""`) is a reliable network. |
 | `--nodes <N>` | with `--net`: launch N instances of the program, node ids `0..N-1` (default 1). |
 | `--record <LOG>` | with `--net`: record every broker operation to LOG for `weft replay`. A `.gz` path is gzip-compressed. |
+| `--window <NS>` | with `--net`: windowed multi-host sequencer, window width NS ns — cross-process delivery order becomes a pure function of the seed. Needs minimum network latency ≥ NS (docs/MULTI_HOST_CLOCK_PROTOCOL.md). |
+| `--watchdog <SECS>` | with `--net`: abort and **discard** (exit 3) if the broker makes no progress for SECS seconds — a deadlock or a guest wedged in uninstrumented compute. 0 = off. |
+| `--listen <IP:PORT>` | with `--net`: host the broker on TCP instead of a Unix socket, so nodes on other hosts can join. This side owns `--record`, `--watchdog`, and failure detection, and stays up until every `--nodes` id has joined and finished. |
+| `--broker <IP:PORT>` | join the broker another `weft run --listen` hosts — the remote half of a multi-host run. |
+| `--spawn <LO-HI>` | node ids to launch locally, inclusive (default `0`-`N-1`). With `--listen`/`--broker` each host launches its share; no window seals until all `--nodes` ids have joined. |
 | `--trace`, `--verbose` | log every intercepted call to stderr. |
-| `--stats` | print scheduler statistics at exit. |
+| `--stats` | print scheduler statistics at exit; with `--window`, also the max observed clock skew. |
 | `--shim <PATH>` | path to `libweft_shim.so` (default: `WEFT_SHIM` env, then next to the `weft` binary). |
 
 **Exit code:** the target's exit status passes through (single-process runs
 `exec` the target, so the status *is* the target's). Cluster runs combine
 node statuses — 0 iff every node exited 0, otherwise a failing node's status
 clamped to 1–255. Weft's own failures print `weft run: <message>` and exit 1.
+Windowed runs exit **3** (discard) when the run is invalid rather than failed:
+a node crashed (killed by a signal, or its connection ended without the shim's
+clean goodbye), the cluster deadlocked, a protocol violation was latched, or
+the `--watchdog` fired.
 
 ### 1.2 `weft replay`
 

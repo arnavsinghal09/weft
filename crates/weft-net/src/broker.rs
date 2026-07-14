@@ -94,6 +94,19 @@ struct State {
     /// orchestrator can abort the run as invalid — continuing past a rejected
     /// op silently corrupts the linearization (design doc §8, F4/F5).
     violation: Option<String>,
+    /// Distinct node ids that have said `Hello` (transport-level, tracked for
+    /// windowed and plain brokers alike) — with `live_conns`, lets a hosting
+    /// orchestrator (`--listen`) hold the broker open until every expected
+    /// node has joined *and* finished, instead of dying with its local
+    /// children while remote nodes still depend on it.
+    nodes_hello: std::collections::HashSet<u32>,
+    /// Connections accepted and not yet disconnected.
+    live_conns: u64,
+    /// Connections that said `Hello` (joined as a node, vs. a bare probe).
+    hello_conns: std::collections::HashSet<u64>,
+    /// Connections that sent a clean `Goodbye`. A windowed node connection
+    /// whose stream ends without one crashed (F1) — latched as a violation.
+    said_goodbye: std::collections::HashSet<u64>,
 }
 
 impl State {
@@ -105,6 +118,10 @@ impl State {
             max_skew_ns: 0,
             seq: (window_ns > 0).then(|| WindowSequencer::new(window_ns, lookahead)),
             violation: None,
+            nodes_hello: std::collections::HashSet::new(),
+            live_conns: 0,
+            hello_conns: std::collections::HashSet::new(),
+            said_goodbye: std::collections::HashSet::new(),
         }
     }
 
@@ -306,6 +323,7 @@ impl Broker {
             {
                 let mut st = self.shared.0.lock().unwrap();
                 st.core.connect(id);
+                st.live_conns += 1;
                 st.observe(Observed::Connect { conn: id });
             }
             let shared = Arc::clone(&self.shared);
@@ -347,6 +365,20 @@ impl Broker {
         if let Some(seq) = self.shared.0.lock().unwrap().seq.as_mut() {
             seq.expect_nodes(n);
         }
+    }
+
+    /// Whether every one of `expected` distinct node ids has said `Hello` and
+    /// every accepted connection has since closed — the whole cluster joined
+    /// and finished. A hosting orchestrator (`--listen`) uses this to keep the
+    /// broker alive for remote nodes after its own children exit.
+    ///
+    /// # Panics
+    ///
+    /// Same non-condition as [`Self::run`].
+    #[must_use]
+    pub fn cluster_drained(&self, expected: u32) -> bool {
+        let st = self.shared.0.lock().unwrap();
+        st.nodes_hello.len() >= expected as usize && st.live_conns == 0
     }
 
     /// The first windowed protocol violation seen (a rejected op: non-monotone
@@ -416,6 +448,8 @@ fn handle_conn(
                 // globally unique so the sort key is already a total order).
                 let vt = {
                     let mut st = shared.0.lock().unwrap();
+                    st.nodes_hello.insert(node_id);
+                    st.hello_conns.insert(id);
                     if let Some(seq) = st.seq.as_mut() {
                         seq.register(id, 0, node_id);
                     }
@@ -470,6 +504,11 @@ fn handle_conn(
                 };
                 let _ = write_from_broker(&mut writer, &FromBroker::Ack { vt });
             }
+            ToBroker::Goodbye => {
+                // Fire-and-forget clean farewell (no reply): the coming EOF is
+                // a normal exit, not a crash.
+                shared.0.lock().unwrap().said_goodbye.insert(id);
+            }
         }
     }
 
@@ -480,6 +519,14 @@ fn handle_conn(
     let (lock, cvar) = &**shared;
     let mut st = lock.lock().unwrap();
     st.core.disconnect(id);
+    st.live_conns = st.live_conns.saturating_sub(1);
+    // F1: a windowed *node* connection (said Hello) that ends without a clean
+    // Goodbye crashed mid-run. What the survivors then see depends on when, in
+    // real time, the crash landed — the run is invalid.
+    if windowed && st.hello_conns.contains(&id) && !st.said_goodbye.contains(&id) {
+        st.violation
+            .get_or_insert_with(|| format!("conn {id} closed without goodbye (node crash)"));
+    }
     if st.seq.is_some() {
         if let Some(seq) = st.seq.as_mut() {
             seq.close(id);

@@ -69,6 +69,11 @@ pub enum ToBroker {
     /// boundary without any network op, so idle guests cannot stall sealing.
     /// Ignored by the non-windowed broker.
     Frontier { local_vt: u64 },
+    /// A clean farewell, sent by the shim when the guest exits normally or
+    /// closes its socket. Fire-and-forget: the broker never replies. A
+    /// windowed connection whose stream ends *without* one crashed (design
+    /// doc §8, F1 — "TCP close without goodbye") and invalidates the run.
+    Goodbye,
 }
 
 /// Messages the broker sends back to a node's shim.
@@ -176,6 +181,7 @@ impl ToBroker {
                 b.push(5);
                 put_u64(&mut b, *local_vt);
             }
+            Self::Goodbye => b.push(6),
         }
         b
     }
@@ -198,6 +204,7 @@ impl ToBroker {
                 local_vt: c.u64()?,
             },
             5 => Self::Frontier { local_vt: c.u64()? },
+            6 => Self::Goodbye,
             _ => return None,
         })
     }
@@ -334,6 +341,7 @@ mod tests {
                 blocking: true,
                 local_vt: 7,
             },
+            ToBroker::Goodbye,
         ];
         for m in tb {
             assert_eq!(ToBroker::decode(&m.encode()), Some(m));

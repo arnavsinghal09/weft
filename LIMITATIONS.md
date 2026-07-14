@@ -147,9 +147,25 @@ poll-drain workloads, with a hard precondition**:
     detected deterministically and discards instead of hanging. Sealing also
     waits for a **join barrier** (all `--nodes` ids said Hello) so node startup
     order — OS scheduling — cannot race the horizon past a late joiner.
-  - **Not done:** validation across *real* hosts/containers; F2 (per-host
-    frontier-lag reporting in `--stats`); F7 (a bound on ops buffered per
-    window — a send-spamming guest today grows the buffer without limit).
+  - Validated across containers: the same 7-node Chord scenario split over
+    two Docker containers on a bridge network (`--listen`/`--broker`/`--spawn`,
+    nodes 0–2 with the broker on one, 3–6 on the other) produced the
+    **byte-identical `chord-check` verdict as the single-host windowed run**
+    (same sorted-verdict hash, 8/8 two-container runs vs 6/6 single-host) —
+    the topology does not leak into the result. Measured max clock skew
+    ~2.0 ms (`--stats`). Killing the remote container mid-run discards the
+    run (exit 3) via the goodbye protocol: a windowed connection that ends
+    without the shim's clean `Goodbye` (sent on `close(2)` and via `atexit`,
+    both skipped by signal death) is latched as a crash, F1.
+  - **Not done:** F2 (per-host frontier-lag reporting in `--stats`); F7 (a
+    bound on ops buffered per window — a send-spamming guest today grows the
+    buffer without limit); true per-host ids in the sort key (every host
+    registers as `host_id 0` today — node ids are globally unique so the
+    order is still total, but the key's host tier is inert); remote *spawning*
+    (the design's `hostd`) — each host runs its own `weft run` by hand or CI.
+    A guest that exits via `_exit()`/`abort()` skips `atexit` and is
+    indistinguishable from a crash: its windowed run is discarded, which is
+    the conservative direction.
 
 ## 4. Shrinking: algorithm and worst case
 
