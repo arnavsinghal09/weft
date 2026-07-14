@@ -164,8 +164,21 @@ quickstart. Know its edges before you rely on it:
   not arrival order. Verified with an in-process two-sender harness
   (`tests/broker_windowed.rs`): the same scenario under two *opposite*
   real-time arrival interleavings produces a byte-identical recording and
-  delivery order. Not yet driven by remote hosts (the shim still speaks the
-  single-host path; TCP client + clock merge is the next step).
+  delivery order.
+
+- Shim multi-host transport and delivery clock merge (`WEFT_WINDOW_NS`). The
+  shim `socket()` now connects to the broker over TCP when `WEFT_BROKER` names
+  a `host:port` endpoint (Unix domain otherwise — same wire protocol either
+  way), and when `WEFT_WINDOW_NS` is set the shim merges each delivery's
+  seed-derived delivery time (`deliv = send_vt + seeded latency`, carried on
+  the windowed broker's `Deliver`) into its local monotonic clock — the
+  arrival-independent Lamport merge the corrected protocol needs
+  (docs/MULTI_HOST_CLOCK_PROTOCOL.md §3). The broker's `Ack` logical clock is
+  still never merged (it depends on cross-process arrival order). Both are
+  inert without `WEFT_WINDOW_NS`, so single-host runs are unchanged (the full
+  Linux net e2e suite still passes). The windowed/TCP runtime path is not yet
+  exercised end to end — that needs the remote process lifecycle and a
+  two-host validation run.
 
 - Entropy-free network waiting in the scheduler (`Status::BlockedNet`,
   `Scheduler::net_block`): a managed blocking `recvfrom` now parks *before*
