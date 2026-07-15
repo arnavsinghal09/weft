@@ -21,15 +21,25 @@ Compatibility impact of anything here is governed by
    merging violation indices afterward is a 5–10× wall-time win with no
    correctness risk (seeds are independent by construction). Same doc, §2.
 3. **TCP support in the simulated network.** Today the broker only
-   diverts `AF_INET`/`SOCK_DGRAM`. Most real services speak TCP; extending
-   the wire protocol and fault model to stream sockets is the single
-   biggest expansion of what Weft can test without touching the shim's
-   core determinism machinery.
-4. **ENOSPC fault injection.** `WEFT_ENOSPC_BYTES` is reserved in the ABI
+   diverts `AF_INET`/`SOCK_DGRAM` — this is about what *targets* may
+   speak, distinct from the multi-host broker transport (which already
+   runs over TCP). Most real services speak TCP; extending the wire
+   protocol and fault model to stream sockets is the single biggest
+   expansion of what Weft can test without touching the shim's core
+   determinism machinery.
+4. **`weft hostd` — remote spawning for multi-host runs.** The windowed
+   multi-host layer is implemented and validated (deterministic Chord and
+   Raft across containers — LIMITATIONS.md §3(c′)), but each host runs its
+   own `weft run --listen`/`--broker`/`--spawn` by hand. The design's host
+   agent (docs/MULTI_HOST_ARCHITECTURE.md "Components") — one `weft hostd`
+   per host receiving spawn specs over a control channel, master-side
+   `--hosts A:PORT,B:PORT` — turns that into one command. Prerequisites
+   (real per-host ids, goodbye/crash detection) have landed.
+5. **ENOSPC fault injection.** `WEFT_ENOSPC_BYTES` is reserved in the ABI
    and referenced in the file-fault hook but not wired up
    (LIMITATIONS.md §2). Byte-tracking already exists; this is finishing
    what fsync-lies started.
-5. **Fold live-target fuzzing into `weft fuzz`.** The fuzzer currently
+6. **Fold live-target fuzzing into `weft fuzz`.** The fuzzer currently
    sweeps the broker's pure decision core; sweeping real `weft run --record`
    clusters (the shim path) is done by hand today
    (`scripts/*-campaign.sh`). Unifying these gives shim-path campaigns the
@@ -37,32 +47,32 @@ Compatibility impact of anything here is governed by
 
 ## Medium-term
 
-6. **seccomp-unotify syscall-boundary interception.** The single change
+7. **seccomp-unotify syscall-boundary interception.** The single change
    that would close the largest gap in what Weft can see: static binaries
    and Go's raw-syscall runtime currently escape interception entirely and
    silently (LIMITATIONS.md §1). A seccomp-notify supervisor answering from
    the same pure decision engine would cover both, at the cost of a
    context switch per intercepted call. Sketched in
    [docs/architecture.md](docs/architecture.md#future-work); not started.
-7. **Log compaction for long campaigns.** 5000 recorded seeds is currently
+8. **Log compaction for long campaigns.** 5000 recorded seeds is currently
    ~3.25 GB; retaining full detail for the first N seeds and summarizing the
    rest is a ~90% storage win for archived campaigns.
    [docs/SCALABILITY_RECOMMENDATIONS.md](docs/SCALABILITY_RECOMMENDATIONS.md) §3.
-8. **Per-node clock instrumentation.** Lets a protocol implementation
+9. **Per-node clock instrumentation.** Lets a protocol implementation
    report wall-clock timestamps the broker can reconcile, unlocking
    per-node performance analysis (e.g. "which node's `stabilize()` is slow")
    that guest-side virtual clocks can't provide today. Same doc, §4.
-9. **Shrinking parallelization.** The ddmin loop is sequential; for
+10. **Shrinking parallelization.** The ddmin loop is sequential; for
    10k+-op violations, parallel candidate removal is a further 5–10× on
    multi-core hardware. Same doc, §5.
-10. **macOS interception port.** `weft replay`/`weft fuzz` already work on
+11. **macOS interception port.** `weft replay`/`weft fuzz` already work on
     macOS (pure computation); `weft run`'s shim does not build there. Porting
     `LD_PRELOAD` → `DYLD_INSERT_LIBRARIES` interposition is scoped in
     [docs/comparison.md](docs/comparison.md#what-a-non-linux-port-would-require)
     as a rewrite of the hook-declaration layer, not new design work — but it
-    ranks below item 6, since recording-exact replay already works on macOS
+    ranks below item 7, since recording-exact replay already works on macOS
     and static/Go coverage on Linux is the bigger gap.
-11. **1.0 and the deprecation-window policy.** Once the scenario DSL, log
+12. **1.0 and the deprecation-window policy.** Once the scenario DSL, log
     format, and CLI surface are stable enough to commit to,
     [VERSIONING.md](VERSIONING.md) §5's minor-version deprecation window
     takes effect. No date attached; gated on real usage surfacing which

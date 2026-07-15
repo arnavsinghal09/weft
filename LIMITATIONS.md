@@ -168,15 +168,32 @@ poll-drain workloads, with a hard precondition**:
     empties and a non-blocking poll's shim-internal retries are not recorded;
     only the final, target-visible EAGAIN is). Every individual recording
     still replays byte-exactly, forever.
-  - **Not done:** F2 (per-host frontier-lag reporting in `--stats`); F7 (a
-    bound on ops buffered per window — a send-spamming guest today grows the
-    buffer without limit); true per-host ids in the sort key (every host
-    registers as `host_id 0` today — node ids are globally unique so the
-    order is still total, but the key's host tier is inert); remote *spawning*
-    (the design's `hostd`) — each host runs its own `weft run` by hand or CI.
-    A guest that exits via `_exit()`/`abort()` skips `atexit` and is
-    indistinguishable from a crash: its windowed run is discarded, which is
-    the conservative direction.
+  - Validated on a second protocol: Raft leader election
+    (`examples/raft/raft_node.c`, 5 members + observer, crash-restarts under
+    test) under `--window 1000 --net latency=uniform:2000-10000`. Same-seed
+    verdicts are identical across 6 single-host runs and across 5
+    two-container runs with distinct `--host-id`s — the two-container hash
+    equals the single-host hash, so neither topology nor host labeling leaks
+    into the result. Windowed mode also *finds* the votedFor-persistence
+    bug: a 60-seed sweep hit 1 ElectionSafety violation (seed 44,
+    `RAFT_FIX=0`), the violation's semantic content (term, leader pair,
+    report/restart counts) is identical across 6 re-runs, and the same seed
+    is clean under `RAFT_FIX=1`. One caveat: `raft-check` cites the
+    violation as "at op N", a raw log position — positions count
+    arrival-ordered non-send entries, so N varies by ±1 across runs
+    (the recording boundary above); it is exact within any one recording.
+  - F2 (per-host frontier lag) and F7 (per-window buffer bound) are
+    implemented: `--stats` on a windowed run reports each node's maximum
+    observed frontier lag behind the pack (sampled in real time, so
+    indicative), and `--window-ops N` discards the run (exit 3) if one node
+    buffers more than N sends inside a single window. Real per-host ids
+    flow from `--host-id` through the shim's `Hello` into the windowed sort
+    key's second tier.
+  - **Not done:** remote *spawning* (the design's `hostd`) — each host runs
+    its own `weft run --listen`/`--broker` by hand or CI. A guest that exits
+    via `_exit()`/`abort()` skips `atexit` and is indistinguishable from a
+    crash: its windowed run is discarded, which is the conservative
+    direction.
 
 ## 4. Shrinking: algorithm and worst case
 

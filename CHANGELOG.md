@@ -244,6 +244,30 @@ quickstart. Know its edges before you rely on it:
   remote container mid-run discards (exit 3, "closed without goodbye").
   In-process split e2e: `net_e2e::split_orchestration_over_tcp_is_live_and_deterministic`.
 
+- Windowed failure-mode table completed (F2, F7) and real per-host ids.
+  `--stats` on a windowed run now reports each node's maximum observed
+  frontier lag behind the furthest-ahead connection (F2 — names the host
+  everyone else waits on; sampled at 50 ms, indicative). `--window-ops N`
+  bounds how many sends one node may buffer inside a single window (F7
+  backpressure): the overflow is a deterministic `SeqError` latched as a
+  violation, and only the *first* rejected op is reported — a spamming
+  guest previously also flooded stderr with one line per rejection, which
+  could fill a captured-pipe buffer and wedge the broker thread. `Hello`
+  now carries a host id (`--host-id` → `WEFT_HOST_ID` → shim), so the
+  windowed sort key's `(local_vt, host_id, node_id, conn_seq)` host tier is
+  real rather than a constant 0; single-host runs are unchanged (host 0).
+
+- Raft validated under windowing — the second real protocol after Chord.
+  Same-seed leader-election verdicts are byte-identical across 6
+  single-host runs and across 5 two-container runs with distinct host ids
+  (two-container hash == single-host hash). Windowed mode also finds the
+  Ongaro Fig. 3.2 votedFor-persistence bug: 1 ElectionSafety violation in a
+  60-seed sweep (seed 44, `RAFT_FIX=0`), semantically identical across 6
+  re-runs (same term, same leader pair, same report/restart counts) and
+  clean under `RAFT_FIX=1`. `raft-check`'s "at op N" citation varies by ±1
+  across runs (log positions count arrival-ordered non-send entries — the
+  documented recording boundary); it is exact within any one recording.
+
 - Windowed recordings no longer log wait mechanics: a blocking recv's empty
   polls and a non-blocking recv's shim-internal retries (whose counts are
   real-time-dependent — the source of the same-seed log-size variance seen in

@@ -41,8 +41,10 @@ weft run --seed <N> [OPTIONS] -- <program> [args...]
 | `--listen <IP:PORT>` | with `--net`: host the broker on TCP instead of a Unix socket, so nodes on other hosts can join. This side owns `--record`, `--watchdog`, and failure detection, and stays up until every `--nodes` id has joined and finished. |
 | `--broker <IP:PORT>` | join the broker another `weft run --listen` hosts — the remote half of a multi-host run. |
 | `--spawn <LO-HI>` | node ids to launch locally, inclusive (default `0`-`N-1`). With `--listen`/`--broker` each host launches its share; no window seals until all `--nodes` ids have joined. |
+| `--host-id <N>` | this host's id in a multi-host run (default 0): the second tier of the windowed ordering key `(local_vt, host_id, node_id, conn_seq)`, keeping hosts totally ordered even if node numbering overlaps. |
+| `--window-ops <N>` | with `--window`: **discard** (exit 3) if one node buffers more than N sends inside a single window — backpressure against a send-spamming guest. 0 = unbounded. |
 | `--trace`, `--verbose` | log every intercepted call to stderr. |
-| `--stats` | print scheduler statistics at exit; with `--window`, also the max observed clock skew. |
+| `--stats` | print scheduler statistics at exit; with `--window`, also the max observed clock skew and each node's max frontier lag (who the cluster waited on — sampled in real time, indicative). |
 | `--shim <PATH>` | path to `libweft_shim.so` (default: `WEFT_SHIM` env, then next to the `weft` binary). |
 
 **Exit code:** the target's exit status passes through (single-process runs
