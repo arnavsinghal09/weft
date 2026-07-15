@@ -43,6 +43,12 @@ pub const ENV_BROKER: &str = "WEFT_BROKER";
 /// cluster (decimal `u32`). Used to label traffic and evaluate partitions.
 pub const ENV_NODE_ID: &str = "WEFT_NODE_ID";
 
+/// Environment variable holding this process's host index in a multi-host
+/// run (decimal `u32`, default 0). Second tier of the windowed sort key
+/// `(local_vt, host_id, node_id, conn_seq)`, keeping distinct hosts totally
+/// ordered even if their node numbering overlaps. Set by `weft run --host-id`.
+pub const ENV_HOST_ID: &str = "WEFT_HOST_ID";
+
 /// Environment variable holding the network-condition spec (see
 /// `weft_net::config`); consumed by the broker, not the shim.
 pub const ENV_NET: &str = "WEFT_NET";

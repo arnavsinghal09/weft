@@ -472,18 +472,17 @@ fn handle_conn(
     // Serve until EOF or a protocol error ends the connection.
     while let Ok(msg) = read_to_broker(&mut reader) {
         match msg {
-            ToBroker::Hello { node_id } => {
+            ToBroker::Hello { node_id, host_id } => {
                 // No state change, but the identity is recorded in linear
                 // order so a log names its participants. In windowed mode this
-                // is also where the connection joins the sealing quorum (host
-                // id 0 until per-host ids arrive with hostd, B3 — node_id is
-                // globally unique so the sort key is already a total order).
+                // is also where the connection joins the sealing quorum with
+                // the sort-key identity `(host_id, node_id)`.
                 let vt = {
                     let mut st = shared.0.lock().unwrap();
                     st.nodes_hello.insert(node_id);
                     st.hello_conns.insert(id);
                     if let Some(seq) = st.seq.as_mut() {
-                        seq.register(id, 0, node_id);
+                        seq.register(id, host_id, node_id);
                     }
                     st.observe(Observed::Hello {
                         conn: id,

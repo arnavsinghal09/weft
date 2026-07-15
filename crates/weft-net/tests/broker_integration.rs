@@ -16,7 +16,10 @@ impl Client {
     fn connect(path: &PathBuf, node: u32) -> Self {
         let mut c = Self(UnixStream::connect(path).unwrap());
         assert!(matches!(
-            c.call(&ToBroker::Hello { node_id: node }),
+            c.call(&ToBroker::Hello {
+                node_id: node,
+                host_id: 0,
+            }),
             FromBroker::Ack { .. }
         ));
         c

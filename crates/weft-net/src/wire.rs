@@ -43,8 +43,12 @@ impl std::fmt::Display for VAddr {
 /// Messages a node's shim sends to the broker.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ToBroker {
-    /// First message on a connection: identify the owning node.
-    Hello { node_id: u32 },
+    /// First message on a connection: identify the owning node and its host
+    /// (`host_id` 0 for single-host runs; multi-host sides pass `--host-id`).
+    /// The pair feeds the windowed sort key `(local_vt, host_id, node_id,
+    /// conn_seq)`, so distinct hosts stay totally ordered even if their node
+    /// numbering ever overlaps.
+    Hello { node_id: u32, host_id: u32 },
     /// Claim `addr` as this connection's receive address (a `bind`).
     Bind { addr: VAddr },
     /// Send a datagram. `local_vt` is the sender's current local virtual
@@ -147,9 +151,10 @@ impl ToBroker {
     pub fn encode(&self) -> Vec<u8> {
         let mut b = Vec::new();
         match self {
-            Self::Hello { node_id } => {
+            Self::Hello { node_id, host_id } => {
                 b.push(1);
                 put_u32(&mut b, *node_id);
+                put_u32(&mut b, *host_id);
             }
             Self::Bind { addr } => {
                 b.push(2);
@@ -190,7 +195,10 @@ impl ToBroker {
     pub fn decode(buf: &[u8]) -> Option<Self> {
         let mut c = Cur { b: buf, i: 0 };
         Some(match c.take(1)?[0] {
-            1 => Self::Hello { node_id: c.u32()? },
+            1 => Self::Hello {
+                node_id: c.u32()?,
+                host_id: c.u32()?,
+            },
             2 => Self::Bind { addr: c.addr()? },
             3 => Self::Send {
                 src: c.addr()?,
@@ -328,7 +336,10 @@ mod tests {
         let a = VAddr::new(0x7f00_0001, 5000);
         let b = VAddr::new(0x7f00_0002, 6000);
         let tb = [
-            ToBroker::Hello { node_id: 3 },
+            ToBroker::Hello {
+                node_id: 3,
+                host_id: 2,
+            },
             ToBroker::Bind { addr: a },
             ToBroker::Send {
                 src: a,

@@ -203,6 +203,18 @@ fn node_id() -> Option<u32> {
     })
 }
 
+/// This process's host id (`WEFT_HOST_ID`), 0 when unset (single-host).
+fn host_id() -> u32 {
+    static HOST: OnceLock<u32> = OnceLock::new();
+    *HOST.get_or_init(|| {
+        let _g = Reentrancy::enter();
+        std::env::var(weft_abi::ENV_HOST_ID)
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0)
+    })
+}
+
 /// The broker socket path (`WEFT_BROKER`), if network simulation is on.
 fn broker_path() -> Option<&'static str> {
     static PATH: OnceLock<Option<String>> = OnceLock::new();
@@ -361,7 +373,10 @@ pub unsafe extern "C" fn socket(domain: c_int, ty: c_int, protocol: c_int) -> c_
                     // Hand fd ownership to the target: it will close it via
                     // the interposed close(2) like any other descriptor.
                     let mut io = RawSock(fd);
-                    let hello = ToBroker::Hello { node_id: node };
+                    let hello = ToBroker::Hello {
+                        node_id: node,
+                        host_id: host_id(),
+                    };
                     let ok = write_to_broker(&mut io, &hello).is_ok()
                         && matches!(read_from_broker(&mut io), Ok(FromBroker::Ack { .. }));
                     if ok {

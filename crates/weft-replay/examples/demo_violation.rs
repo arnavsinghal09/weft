@@ -53,10 +53,22 @@ fn main() {
     // Two "nodes": a sender bursting 20 datagrams and a receiver draining.
     let (ra, ta) = (VAddr::new(0x7f00_0001, 100), VAddr::new(0x7f00_0002, 200));
     let mut rx = UnixStream::connect(&sock).unwrap();
-    call(&mut rx, &ToBroker::Hello { node_id: 0 });
+    call(
+        &mut rx,
+        &ToBroker::Hello {
+            node_id: 0,
+            host_id: 0,
+        },
+    );
     call(&mut rx, &ToBroker::Bind { addr: ra });
     let mut tx = UnixStream::connect(&sock).unwrap();
-    call(&mut tx, &ToBroker::Hello { node_id: 1 });
+    call(
+        &mut tx,
+        &ToBroker::Hello {
+            node_id: 1,
+            host_id: 0,
+        },
+    );
     call(&mut tx, &ToBroker::Bind { addr: ta });
     for i in 0u32..20 {
         call(

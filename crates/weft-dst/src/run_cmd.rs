@@ -51,6 +51,9 @@ Options:
   --spawn <LO-HI>     Node ids to launch locally, inclusive (default 0-N-1);
                       with --listen/--broker each host launches its share and
                       no window seals until all --nodes ids have joined
+  --host-id <N>       This host's id in a multi-host run (default 0): the
+                      second tier of the windowed ordering key, keeping
+                      hosts totally ordered even if node numbering overlaps
   --trace, --verbose  Log every intercepted call to stderr
   --stats             Print scheduler statistics at exit
   --shim <PATH>       Path to libweft_shim.so (default: WEFT_SHIM env,
@@ -92,6 +95,9 @@ pub struct RunOpts {
     /// share; the join barrier still waits for all `--nodes`). Defaults to
     /// `0..nodes-1`.
     pub spawn: Option<(u32, u32)>,
+    /// This host's id in a multi-host run (default 0) — the second tier of
+    /// the windowed sort key. Requires `--net`.
+    pub host_id: u32,
     pub shim: Option<PathBuf>,
     pub program: Vec<OsString>,
 }
@@ -119,6 +125,7 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
     let mut listen = None;
     let mut broker = None;
     let mut spawn = None;
+    let mut host_id = 0u32;
     let mut shim = None;
     let mut program = Vec::new();
 
@@ -230,6 +237,17 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
                     .ok_or_else(|| "--broker address is not UTF-8".to_string())?;
                 broker = Some(v.to_string());
             }
+            Some("--host-id") => {
+                let v = args
+                    .next()
+                    .ok_or_else(|| "--host-id requires a value".to_string())?;
+                let v = v
+                    .to_str()
+                    .ok_or_else(|| "--host-id value is not UTF-8".to_string())?;
+                host_id = v
+                    .parse()
+                    .map_err(|_| format!("--host-id {v:?} is not a non-negative integer"))?;
+            }
             Some("--spawn") => {
                 let v = args
                     .next()
@@ -284,8 +302,8 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
     if watchdog > 0 && net.is_none() {
         return Err("--watchdog requires --net (progress is measured at the broker)".to_string());
     }
-    if (listen.is_some() || broker.is_some() || spawn.is_some()) && net.is_none() {
-        return Err("--listen/--broker/--spawn require --net".to_string());
+    if (listen.is_some() || broker.is_some() || spawn.is_some() || host_id > 0) && net.is_none() {
+        return Err("--listen/--broker/--spawn/--host-id require --net".to_string());
     }
     if window_ops > 0 && window == 0 {
         return Err("--window-ops requires --window (it bounds a window's buffer)".to_string());
@@ -329,6 +347,7 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
         listen,
         broker,
         spawn,
+        host_id,
         shim,
         program,
     })
@@ -522,6 +541,9 @@ pub fn run_cluster(opts: &RunOpts) -> Result<i32, String> {
             .env(weft_abi::ENV_NET, spec);
         if opts.window > 0 {
             cmd.env(weft_abi::ENV_WINDOW_NS, opts.window.to_string());
+        }
+        if opts.host_id > 0 {
+            cmd.env(weft_abi::ENV_HOST_ID, opts.host_id.to_string());
         }
         let child = cmd
             .spawn()

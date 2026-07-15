@@ -26,7 +26,10 @@ impl Client {
     fn connect(path: &PathBuf, node: u32) -> Self {
         let mut c = Self(UnixStream::connect(path).unwrap());
         assert!(matches!(
-            c.call(&ToBroker::Hello { node_id: node }),
+            c.call(&ToBroker::Hello {
+                node_id: node,
+                host_id: 0,
+            }),
             FromBroker::Ack { .. }
         ));
         c
@@ -169,6 +172,30 @@ fn recording_is_independent_of_arrival_order() {
         deliv_ab, deliv_ba,
         "opposite arrival orders produced different delivery"
     );
+}
+
+/// The host id carried on `Hello` reaches the sequencer's per-connection
+/// identity (the sort key's second tier) — observable through the frontier-lag
+/// snapshot, which reports `(host_id, node_id, lag)`.
+#[test]
+fn hello_host_id_reaches_the_sequencer() {
+    let path = std::env::temp_dir().join(format!("weft-win-host-{}.sock", std::process::id()));
+    let _ = std::fs::remove_file(&path);
+    let model = config::parse(1, NET_SPEC).unwrap();
+    let broker = Arc::new(Broker::bind_with_window(&path, model, None, WINDOW_NS).unwrap());
+    {
+        let broker = Arc::clone(&broker);
+        std::thread::spawn(move || broker.run());
+    }
+    let mut c = Client(UnixStream::connect(&path).unwrap());
+    assert!(matches!(
+        c.call(&ToBroker::Hello {
+            node_id: 4,
+            host_id: 7,
+        }),
+        FromBroker::Ack { .. }
+    ));
+    assert_eq!(broker.frontier_lags(), vec![(7, 4, 0)]);
 }
 
 /// A non-monotone `local_vt` (F5: a shim clock bug or a reconnect splice) must
