@@ -15,6 +15,7 @@ const PROGRAMS: &[&str] = &[
     "netsched",
     "deadlock_recv",
     "crash_now",
+    "spam_send",
 ];
 
 /// The seeded network spec used by the kvreplica proof (documented in
@@ -76,6 +77,18 @@ fn weft_net_run_window(
     window: u64,
     program: &str,
 ) -> (String, i32) {
+    weft_net_run_args(seed, net, nodes, window, &[], program)
+}
+
+/// [`weft_net_run_window`] with arbitrary extra `weft run` flags.
+fn weft_net_run_args(
+    seed: u64,
+    net: &str,
+    nodes: u32,
+    window: u64,
+    extra: &[&str],
+    program: &str,
+) -> (String, i32) {
     let mut cmd = Command::new(weft_bin());
     cmd.arg("run")
         .args(["--seed", &seed.to_string()])
@@ -84,6 +97,7 @@ fn weft_net_run_window(
     if window > 0 {
         cmd.args(["--window", &window.to_string()]);
     }
+    cmd.args(extra);
     let mut child = cmd
         .arg("--shim")
         .arg(shim_path())
@@ -344,6 +358,30 @@ fn windowed_deadlock_is_detected_and_discarded() {
         code, 3,
         "windowed deadlock must discard (exit 3), got {code}"
     );
+}
+
+/// A node that buffers more sends inside one window than `--window-ops`
+/// allows must be refused deterministically and the run discarded (F7
+/// backpressure) — never an unbounded buffer. The spammer emits 2000 sends
+/// back to back; with a 1 ms window and ~1 µs of virtual time per send, far
+/// more than 100 land in the first window.
+#[test]
+fn windowed_send_spam_overflows_the_bound_and_discards() {
+    let (_out, code) = weft_net_run_args(
+        0,
+        "latency=fixed:1000000",
+        1,
+        1_000_000,
+        &["--window-ops", "100"],
+        "spam_send",
+    );
+    assert_eq!(
+        code, 3,
+        "window-ops overflow must discard (exit 3), got {code}"
+    );
+    // Without the bound the same spam completes cleanly.
+    let (_out, code) = weft_net_run_window(0, "latency=fixed:1000000", 1, 1_000_000, "spam_send");
+    assert_eq!(code, 0, "unbounded spam run should complete, got {code}");
 }
 
 /// A node killed by a signal mid-run is a real crash (F1): the windowed run is

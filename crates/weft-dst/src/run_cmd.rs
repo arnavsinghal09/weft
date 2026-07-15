@@ -40,6 +40,9 @@ Options:
   --watchdog <SECS>   With --net: abort and discard the run if the broker
                       makes no progress for SECS seconds (a deadlock or a
                       guest wedged in uninstrumented compute); 0 = off
+  --window-ops <N>    With --window: discard the run if one node buffers
+                      more than N sends inside a single window (backpressure
+                      against a send-spamming guest); 0 = unbounded
   --listen <IP:PORT>  With --net: host the broker on TCP instead of a Unix
                       socket so nodes on other hosts can join (--broker there)
   --broker <IP:PORT>  Join a broker another `weft run --listen` is hosting,
@@ -75,6 +78,10 @@ pub struct RunOpts {
     /// marked invalid (discard) — the design's F3/F6 handling. Only ever
     /// discards; a completed run is never altered.
     pub watchdog: u64,
+    /// F7 backpressure bound (0 = unbounded): the most sends one node may
+    /// buffer inside a single window before the run is discarded. Requires
+    /// `--window`.
+    pub window_ops: usize,
     /// Host the broker on this TCP address (`IP:PORT`) instead of a Unix
     /// socket, so nodes on other hosts can join (`--broker` on their side).
     pub listen: Option<String>,
@@ -107,6 +114,7 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
     let mut nodes = 1u32;
     let mut window = 0u64;
     let mut watchdog = 0u64;
+    let mut window_ops = 0usize;
     let mut record = None;
     let mut listen = None;
     let mut broker = None;
@@ -186,6 +194,17 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
                 watchdog = v.parse().map_err(|_| {
                     format!("--watchdog {v:?} is not a non-negative integer (secs)")
                 })?;
+            }
+            Some("--window-ops") => {
+                let v = args
+                    .next()
+                    .ok_or_else(|| "--window-ops requires a count".to_string())?;
+                let v = v
+                    .to_str()
+                    .ok_or_else(|| "--window-ops value is not UTF-8".to_string())?;
+                window_ops = v
+                    .parse()
+                    .map_err(|_| format!("--window-ops {v:?} is not a non-negative integer"))?;
             }
             Some("--record") => {
                 let v = args
@@ -268,6 +287,9 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
     if (listen.is_some() || broker.is_some() || spawn.is_some()) && net.is_none() {
         return Err("--listen/--broker/--spawn require --net".to_string());
     }
+    if window_ops > 0 && window == 0 {
+        return Err("--window-ops requires --window (it bounds a window's buffer)".to_string());
+    }
     if listen.is_some() && broker.is_some() {
         return Err(
             "--listen and --broker are mutually exclusive (host or join, not both)".to_string(),
@@ -303,6 +325,7 @@ pub fn parse_args<I: IntoIterator<Item = OsString>>(args: I) -> Result<RunOpts, 
         window,
         record,
         watchdog,
+        window_ops,
         listen,
         broker,
         spawn,
@@ -474,6 +497,9 @@ pub fn run_cluster(opts: &RunOpts) -> Result<i32, String> {
         // joiner — on multi-host runs, past a whole slow host.
         if opts.window > 0 {
             broker.expect_nodes(opts.nodes);
+            if opts.window_ops > 0 {
+                broker.limit_window_ops(opts.window_ops);
+            }
         }
         let broker = std::sync::Arc::new(broker);
         {
@@ -515,6 +541,11 @@ pub fn run_cluster(opts: &RunOpts) -> Result<i32, String> {
     let mut running = children;
     let mut last_sent = broker.as_ref().map_or(0, |b| b.stats().0);
     let mut last_progress = std::time::Instant::now();
+    // F2 observability: sample per-node frontier lag while the run is live
+    // (at exit every connection has closed, so a final snapshot is empty)
+    // and keep the maxima for the --stats report. Real-time sampling, so the
+    // numbers are indicative, not exact — fine for naming the laggard.
+    let mut max_lags: std::collections::HashMap<(u32, u32), u64> = std::collections::HashMap::new();
     loop {
         let mut i = 0;
         while i < running.len() {
@@ -597,6 +628,12 @@ pub fn run_cluster(opts: &RunOpts) -> Result<i32, String> {
                     last_progress = std::time::Instant::now();
                 }
             }
+            if opts.stats && opts.window > 0 {
+                for (host, node, lag) in b.frontier_lags() {
+                    let m = max_lags.entry((host, node)).or_insert(0);
+                    *m = (*m).max(lag);
+                }
+            }
         }
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
@@ -619,6 +656,14 @@ pub fn run_cluster(opts: &RunOpts) -> Result<i32, String> {
                 // F2 observability: the largest |node local clock - broker
                 // logical clock| seen across all ops that carried a clock.
                 eprintln!("[weft] max clock skew: {} ns", b.max_skew_ns());
+                // F2: which node's frontier trailed the pack the most —
+                // the connection everyone else was waiting on (sampled at
+                // 50ms during the run, so indicative rather than exact).
+                let mut lags: Vec<_> = max_lags.iter().collect();
+                lags.sort_unstable();
+                for ((host, node), lag) in lags {
+                    eprintln!("[weft] frontier lag host {host} node {node}: max {lag} ns");
+                }
             }
         } else {
             eprintln!("[weft] network stats live on the hosting side (--listen)");

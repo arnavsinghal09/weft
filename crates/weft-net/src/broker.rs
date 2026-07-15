@@ -367,6 +367,38 @@ impl Broker {
         }
     }
 
+    /// Arm the windowed F7 backpressure bound: the most sends one connection
+    /// may buffer inside a single window (see
+    /// [`WindowSequencer::limit_window_ops`]). No-op on the non-windowed
+    /// broker.
+    ///
+    /// # Panics
+    ///
+    /// Same non-condition as [`Self::run`].
+    pub fn limit_window_ops(&self, n: usize) {
+        if let Some(seq) = self.shared.0.lock().unwrap().seq.as_mut() {
+            seq.limit_window_ops(n);
+        }
+    }
+
+    /// Per-connection frontier lag behind the furthest-ahead live connection
+    /// (F2 observability, see [`WindowSequencer::frontier_lags`]). Empty on
+    /// the non-windowed broker.
+    ///
+    /// # Panics
+    ///
+    /// Same non-condition as [`Self::run`].
+    #[must_use]
+    pub fn frontier_lags(&self) -> Vec<(u32, u32, u64)> {
+        self.shared
+            .0
+            .lock()
+            .unwrap()
+            .seq
+            .as_ref()
+            .map_or_else(Vec::new, WindowSequencer::frontier_lags)
+    }
+
     /// Whether every one of `expected` distinct node ids has said `Hello` and
     /// every accepted connection has since closed — the whole cluster joined
     /// and finished. A hosting orchestrator (`--listen`) uses this to keep the
@@ -597,12 +629,14 @@ fn admit_send(
             st.seal_and_feed(global_time);
             cvar.notify_all();
         }
-        Some(Err(e)) => {
+        // Report and latch only the first violation: a guest spamming
+        // rejected ops (e.g. an F7 overflow loop) must not also flood
+        // stderr — the run is already condemned by the latch.
+        Some(Err(e)) if st.violation.is_none() => {
             eprintln!("weft-net: sequencer rejected send on conn {conn}: {e:?}");
-            st.violation
-                .get_or_insert_with(|| format!("rejected send on conn {conn}: {e:?}"));
+            st.violation = Some(format!("rejected send on conn {conn}: {e:?}"));
         }
-        None => {}
+        Some(Err(_)) | None => {}
     }
     st.core.vt()
 }
@@ -627,12 +661,11 @@ fn declare_frontier(
             st.seal_and_feed(global_time);
             cvar.notify_all();
         }
-        Some(Err(e)) => {
+        Some(Err(e)) if st.violation.is_none() => {
             eprintln!("weft-net: sequencer rejected frontier on conn {conn}: {e:?}");
-            st.violation
-                .get_or_insert_with(|| format!("rejected frontier on conn {conn}: {e:?}"));
+            st.violation = Some(format!("rejected frontier on conn {conn}: {e:?}"));
         }
-        None => {}
+        Some(Err(_)) | None => {}
     }
     st.core.vt()
 }

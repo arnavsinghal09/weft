@@ -74,6 +74,15 @@ pub enum SeqError {
         local_vt: u64,
         horizon: u64,
     },
+    /// One connection buffered more sends inside a single window than the
+    /// configured bound (design doc §8, F7): a backpressure guard against a
+    /// send-spamming guest growing the buffer without limit. Deterministic
+    /// for the spamming connection — its admits are its own program order.
+    WindowOverflow {
+        conn: ConnId,
+        window_start: u64,
+        bound: usize,
+    },
 }
 
 struct ConnState {
@@ -120,6 +129,9 @@ pub struct WindowSequencer {
     /// Distinct node ids ever registered (survives close, so a node that
     /// joins and exits still counts toward the barrier).
     nodes_seen: std::collections::HashSet<u32>,
+    /// F7 backpressure bound: the most sends one connection may buffer inside
+    /// a single window (0 = unbounded).
+    max_window_ops: usize,
 }
 
 impl WindowSequencer {
@@ -139,7 +151,14 @@ impl WindowSequencer {
             horizon: 0,
             expected_nodes: 0,
             nodes_seen: std::collections::HashSet::new(),
+            max_window_ops: 0,
         }
+    }
+
+    /// Arm the F7 backpressure bound: refuse the `n+1`-th send one connection
+    /// buffers inside a single window (0 = unbounded, the default).
+    pub fn limit_window_ops(&mut self, n: usize) {
+        self.max_window_ops = n;
     }
 
     /// Arm the join barrier: hold every window open until `n` distinct node
@@ -235,6 +254,24 @@ impl WindowSequencer {
                 local_vt,
                 horizon: self.horizon,
             });
+        }
+        // F7 backpressure: a connection may not buffer more than the bound
+        // inside one window. Counted per (conn, window) so the check is a
+        // function of that connection's own program order, not of how other
+        // connections' admits interleave in real time.
+        if self.max_window_ops > 0 {
+            let in_window = self
+                .pending
+                .iter()
+                .filter(|s| s.conn == conn && s.local_vt / self.width == local_vt / self.width)
+                .count();
+            if in_window >= self.max_window_ops {
+                return Err(SeqError::WindowOverflow {
+                    conn,
+                    window_start: (local_vt / self.width) * self.width,
+                    bound: self.max_window_ops,
+                });
+            }
         }
         let c = self
             .conns
@@ -388,6 +425,42 @@ impl WindowSequencer {
         ready.sort_by_key(SeqSend::key);
         self.horizon = new_horizon;
         ready
+    }
+
+    /// Per-connection frontier lag (F2 observability): for every *live*
+    /// connection, `(host_id, node_id, lag)` where `lag` is how far its
+    /// sealing bound trails the furthest-ahead live connection's, sorted by
+    /// `(host_id, node_id)`. The horizon can only advance to the slowest
+    /// bound — conservative PDES's price — so the largest lag names the
+    /// connection (and with real host ids, the host) everyone else is
+    /// waiting on. Blocked-with-nothing-inbound connections (`INFINITY`
+    /// bound) hold nothing back and report 0.
+    #[must_use]
+    pub fn frontier_lags(&self) -> Vec<(u32, u32, u64)> {
+        let lead = self
+            .conns
+            .values()
+            .filter(|c| c.live)
+            .map(|c| self.conn_bound(c))
+            .filter(|&b| b != INFINITY)
+            .max()
+            .unwrap_or(0);
+        let mut lags: Vec<(u32, u32, u64)> = self
+            .conns
+            .values()
+            .filter(|c| c.live)
+            .map(|c| {
+                let bound = self.conn_bound(c);
+                let lag = if bound == INFINITY {
+                    0
+                } else {
+                    lead.saturating_sub(bound)
+                };
+                (c.host_id, c.node_id, lag)
+            })
+            .collect();
+        lags.sort_unstable();
+        lags
     }
 
     /// Whether the whole cluster has quiesced: no live connection can emit and
@@ -649,6 +722,50 @@ mod tests {
         s.close(0);
         assert_eq!(s.seal().len(), 1);
         assert_eq!(s.horizon(), INFINITY);
+    }
+
+    #[test]
+    fn window_ops_bound_refuses_a_spamming_conn_deterministically() {
+        let mut s = WindowSequencer::new(100, 0);
+        s.limit_window_ops(3);
+        s.register(0, 0, 0);
+        s.register(1, 0, 1);
+        // Three sends inside window [0,100) are fine; the fourth overflows.
+        for vt in [1, 2, 3] {
+            s.admit_send(0, vt, addr(0, 1), addr(1, 2), vec![0])
+                .unwrap();
+        }
+        let err = s
+            .admit_send(0, 4, addr(0, 1), addr(1, 2), vec![0])
+            .unwrap_err();
+        assert_eq!(
+            err,
+            SeqError::WindowOverflow {
+                conn: 0,
+                window_start: 0,
+                bound: 3
+            }
+        );
+        // Another connection's budget is its own...
+        s.admit_send(1, 5, addr(2, 3), addr(1, 2), vec![0]).unwrap();
+        // ...and the next window resets the count for conn 0.
+        s.admit_send(0, 150, addr(0, 1), addr(1, 2), vec![0])
+            .unwrap();
+    }
+
+    #[test]
+    fn frontier_lags_name_the_laggard() {
+        let mut s = WindowSequencer::new(100, 0);
+        s.register(0, 0, 0);
+        s.register(1, 1, 1);
+        s.register(2, 1, 2);
+        s.declare_frontier(0, 500).unwrap();
+        s.declare_frontier(1, 200).unwrap();
+        // Conn 2 stays at frontier 0 — the laggard holding the horizon.
+        assert_eq!(s.frontier_lags(), vec![(0, 0, 0), (1, 1, 300), (1, 2, 500)]);
+        // A released (closed) connection drops out entirely.
+        s.close(2);
+        assert_eq!(s.frontier_lags(), vec![(0, 0, 0), (1, 1, 300)]);
     }
 
     #[test]
