@@ -427,11 +427,11 @@ dependencies = [
 
 [[package]]
 name = "weft-abi"
-version = "0.0.1"
+version = "0.0.2"
 
 [[package]]
 name = "weft-chord"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "stateright",
  "weft-replay",
@@ -439,7 +439,7 @@ dependencies = [
 
 [[package]]
 name = "weft-dst"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "libc",
  "serde_json",
@@ -452,7 +452,7 @@ dependencies = [
 
 [[package]]
 name = "weft-fuzz"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -463,7 +463,7 @@ dependencies = [
 
 [[package]]
 name = "weft-net"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "rand_chacha",
  "rand_core",
@@ -472,7 +472,7 @@ dependencies = [
 
 [[package]]
 name = "weft-raft"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "stateright",
  "weft-replay",
@@ -480,7 +480,7 @@ dependencies = [
 
 [[package]]
 name = "weft-replay"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "flate2",
  "serde",
@@ -490,7 +490,7 @@ dependencies = [
 
 [[package]]
 name = "weft-scenario"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -499,7 +499,7 @@ dependencies = [
 
 [[package]]
 name = "weft-shim"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "libc",
  "rand_chacha",

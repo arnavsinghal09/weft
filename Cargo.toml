@@ -3,17 +3,17 @@ resolver = "2"
 members = ["crates/weft-dst", "crates/weft-abi", "crates/weft-shim", "crates/weft-net", "crates/weft-scenario", "crates/weft-replay", "crates/weft-fuzz", "crates/weft-chord", "crates/weft-raft"]
 
 [workspace.dependencies]
-weft-abi = { path = "crates/weft-abi", version = "0.0.1" }
-weft-net = { path = "crates/weft-net", version = "0.0.1" }
-weft-scenario = { path = "crates/weft-scenario", version = "0.0.1" }
-weft-replay = { path = "crates/weft-replay", version = "0.0.1" }
-weft-fuzz = { path = "crates/weft-fuzz", version = "0.0.1" }
+weft-abi = { path = "crates/weft-abi", version = "0.0.2" }
+weft-net = { path = "crates/weft-net", version = "0.0.2" }
+weft-scenario = { path = "crates/weft-scenario", version = "0.0.2" }
+weft-replay = { path = "crates/weft-replay", version = "0.0.2" }
+weft-fuzz = { path = "crates/weft-fuzz", version = "0.0.2" }
 libc = "0.2"
 rand_chacha = { version = "0.3", default-features = false }
 rand_core = { version = "0.6", default-features = false }
 
 [workspace.package]
-version = "0.0.1"
+version = "0.0.2"
 edition = "2021"
 rust-version = "1.84"
 license = "MIT OR Apache-2.0"

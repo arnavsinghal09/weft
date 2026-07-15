@@ -9,6 +9,8 @@ minor versions may contain breaking changes.
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-07-15
+
 Weft is a deterministic simulation testing (DST) framework for **unmodified
 Linux binaries** — no rewrite, no special runtime. Point `weft run` at a
 compiled program and one seed determines every clock read, every random
